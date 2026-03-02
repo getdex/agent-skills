@@ -40,7 +40,6 @@ jobs:
 
       - name: Generate CLI binary
         env:
-          DEX_API_KEY: ${{ secrets.DEX_CI_API_KEY }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
@@ -49,7 +48,6 @@ jobs:
 
           clihub generate \
             --url https://mcp.getdex.com/mcp \
-            --auth-token "$DEX_API_KEY" \
             --name dex \
             --platform "${GOOS}/${GOARCH}" \
             --output ./dist
