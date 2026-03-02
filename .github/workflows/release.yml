@@ -1,0 +1,81 @@
+name: Release CLI Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install CLIHub
+        run: go install github.com/thellimist/clihub@latest
+
+      - name: Generate CLI binary
+        env:
+          DEX_API_KEY: ${{ secrets.DEX_CI_API_KEY }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+
+          clihub generate \
+            --url https://mcp.getdex.com/mcp \
+            --auth-token "$DEX_API_KEY" \
+            --name dex \
+            --platform "${GOOS}/${GOARCH}" \
+            --output ./dist
+
+          # Rename to consistent naming convention
+          mv ./dist/dex-${GOOS}-${GOARCH}${EXT} ./dist/dex-${GOOS}-${GOARCH}${EXT} 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dex-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./dist/dex-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ./artifacts/dex-*

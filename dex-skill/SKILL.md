@@ -1,5 +1,5 @@
 ---
-name: dex
+name: dex-skill
 description: >
   Manage your Dex personal CRM — search, create, and update contacts, log interaction notes,
   set follow-up reminders, organize contacts with tags and groups, and manage custom fields.
@@ -9,14 +9,9 @@ description: >
   (7) Merge duplicate contacts, (8) Review their relationship history or prepare for a meeting,
   or any other personal CRM task involving their professional network.
 metadata:
-  version: 1.0.0
-  openclaw:
-    requires:
-      anyBins:
-        - go
-        - npx
-    emoji: "\U0001F91D"
-    homepage: https://getdex.com
+  version: "1.0.0"
+  openclaw-emoji: "\U0001F91D"
+  openclaw-homepage: https://getdex.com
 ---
 
 # Dex Personal CRM
@@ -52,6 +47,48 @@ Supported clients (auto-detected by `add-mcp`): Claude Code, Claude Desktop, Cur
 **Path C — Neither Go nor Node.js:** Prints the MCP config snippet for the user to add manually.
 
 The setup script is idempotent — safe to run multiple times.
+
+### Headless / Server Setup
+
+For headless environments (SSH servers, CI, containers) where no browser is available, the setup script picks the best method automatically:
+
+**Interactive headless (has TTY, no browser) — Device Code Flow:**
+
+```bash
+bash scripts/setup.sh
+```
+
+The script detects the environment and starts a device code flow:
+1. Downloads the pre-built CLI binary for your platform
+2. Requests a one-time code from the Dex server
+3. Displays a short code (e.g., `ABCD-1234`) and a URL
+4. You open the URL on any device with a browser, log in to Dex, and enter the code
+5. The CLI automatically receives an API key and completes setup
+
+This is the recommended path for SSH servers and headless desktops where a human is present.
+
+**Non-interactive / CI — API Key Flow:**
+
+For CI pipelines, containers, or automation where no human is present:
+
+1. **Generate an API key** at [Dex Settings > Integrations](https://getdex.com/settings/integrations) (requires Professional plan)
+2. **Set the key** as an environment variable:
+   ```bash
+   export DEX_API_KEY=dex_your_key_here
+   ```
+3. **Run setup**:
+   ```bash
+   bash scripts/setup.sh
+   ```
+
+The script will:
+- Download the pre-built CLI binary for your platform from [GitHub Releases](https://github.com/getdex/agent-skills/releases)
+- Authenticate using your API key
+- Save the key to `~/.dex/api-key` (chmod 600) so you only need to provide it once
+
+Subsequent runs reuse the saved key — no need to export `DEX_API_KEY` again.
+
+**Headless detection triggers:** `$DEX_API_KEY` is set, `~/.dex/api-key` exists, SSH session without `$DISPLAY`, or Linux without any display server.
 
 ## Data Model
 
