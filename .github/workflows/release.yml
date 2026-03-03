@@ -53,8 +53,8 @@ jobs:
             --platform "${GOOS}/${GOARCH}" \
             --output ./dist
 
-          # Rename to consistent naming convention
-          mv ./dist/dex-${GOOS}-${GOARCH}${EXT} ./dist/dex-${GOOS}-${GOARCH}${EXT} 2>/dev/null || true
+          # Rename to consistent naming convention (clihub outputs ./dist/dex)
+          mv "./dist/dex${EXT}" "./dist/dex-${GOOS}-${GOARCH}${EXT}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
