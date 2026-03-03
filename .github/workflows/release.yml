@@ -48,6 +48,7 @@ jobs:
 
           clihub generate \
             --url https://mcp.getdex.com/mcp \
+            --auth-token dex_ci_discovery \
             --name dex \
             --platform "${GOOS}/${GOARCH}" \
             --output ./dist
