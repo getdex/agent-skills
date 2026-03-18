@@ -7,9 +7,10 @@ description: >
   (3) Log a meeting, call, or interaction note, (4) Set a reminder or follow-up task,
   (5) Organize contacts into groups or apply tags, (6) Track custom data with custom fields,
   (7) Merge duplicate contacts, (8) Review their relationship history or prepare for a meeting,
+  (9) Authenticate with Dex via /dex-login,
   or any other personal CRM task involving their professional network.
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   openclaw-emoji: "\U0001F91D"
   openclaw-homepage: https://getdex.com
 ---
@@ -23,72 +24,70 @@ Dex is a personal CRM that helps users maintain and nurture their professional r
 Check which access method is available, in this order:
 
 1. **MCP tools available?** If `dex_search_contacts` and other `dex_*` tools are in the tool list, use MCP tools directly. This is the preferred method — skip CLI setup entirely.
-2. **CLI installed?** Check if `~/.dex/bin/dex` exists and run `~/.dex/bin/dex auth status`. If authenticated, use CLI commands.
-3. **Neither?** Run the setup script to install the CLI, then authenticate.
+2. **CLI installed?** Check if `dex` command exists (run `which dex` or `dex auth status`). If authenticated, use CLI commands.
+3. **Neither?** Guide the user through setup.
 
 ### First-Time Setup
 
-Run the bundled setup script. It automatically picks the best path based on what's installed:
+**Path A — Platform supports MCP (Claude Desktop, Cursor, VS Code, Gemini CLI, etc.):**
+
+If the user already has the Dex MCP server configured, or their platform can add MCP servers:
 
 ```bash
-bash scripts/setup.sh
+npx -y add-mcp https://mcp.getdex.com/mcp -y
 ```
 
-**Path A — Go installed:** Generates a `dex` CLI binary at `~/.dex/bin/dex` via CLIHub. Opens browser for OAuth during generation. CLI credentials persist in `~/.clihub/credentials.json`.
+This auto-detects installed AI clients and configures the Dex MCP server for all of them. User authenticates via browser on first MCP connection.
+
+**Path B — Install CLI:**
 
 ```bash
-~/.dex/bin/dex auth status  # Verify authentication
+npm install -g @getdex/cli
 ```
 
-**Path B — No Go (requires Node.js):** Uses `npx add-mcp` to configure the hosted Dex MCP server (`https://mcp.getdex.com/mcp`) across all detected AI clients automatically. User authenticates via browser on first MCP connection.
+Works with npm, pnpm, and yarn. No postinstall scripts — the binary is bundled in a platform-specific package.
 
-Supported clients (auto-detected by `add-mcp`): Claude Code, Claude Desktop, Cursor, VS Code (Copilot), Gemini CLI, Codex, Goose, OpenCode, Zed, and more.
+**Path C — No Node.js:**
 
-**Path C — Neither Go nor Node.js:** Prints the MCP config snippet for the user to add manually.
+Direct the user to follow the setup guide at **https://getdex.com/docs/ai/mcp-server** — it has client-specific instructions for Claude Desktop, Claude Code, Cursor, VS Code, and other MCP-capable clients.
 
-The setup script is idempotent — safe to run multiple times.
+### Authentication
 
-### Headless / Server Setup
+Triggered by `/dex-login` or on first use when not authenticated. Ask the user which method they prefer:
 
-For headless environments (SSH servers, CI, containers) where no browser is available, the setup script picks the best method automatically:
+**Option 1 — API Key:**
+1. User generates a key at [Dex Settings > Integrations](https://getdex.com/appv3/settings/api) (requires Professional plan)
+2. For CLI: `dex auth --token dex_your_key_here`
+3. Key is saved to `~/.dex/api-key` (chmod 600)
 
-**Interactive headless (has TTY, no browser) — Device Code Flow:**
+**Option 2 — Device Code Flow (works on remote/headless machines):**
 
-```bash
-bash scripts/setup.sh
-```
+Drive this flow directly via HTTP — no browser needed on the machine:
 
-The script detects the environment and starts a device code flow:
-1. Downloads the pre-built CLI binary for your platform
-2. Requests a one-time code from the Dex server
-3. Displays a short code (e.g., `ABCD-1234`) and a URL
-4. You open the URL on any device with a browser, log in to Dex, and enter the code
-5. The CLI automatically receives an API key and completes setup
-
-This is the recommended path for SSH servers and headless desktops where a human is present.
-
-**Non-interactive / CI — API Key Flow:**
-
-For CI pipelines, containers, or automation where no human is present:
-
-1. **Generate an API key** at [Dex Settings > Integrations](https://getdex.com/settings/integrations) (requires Professional plan)
-2. **Set the key** as an environment variable:
+1. Request a device code:
    ```bash
-   export DEX_API_KEY=dex_your_key_here
+   curl -s -X POST https://mcp.getdex.com/device/code -H "Content-Type: application/json"
    ```
-3. **Run setup**:
+   Response: `{ "device_code": "...", "user_code": "ABCD-EFGH", "verification_uri": "https://...", "expires_in": 600, "interval": 5 }`
+
+2. Show the user the `user_code` and `verification_uri`. They open the URL on any device with a browser, log in to Dex, and enter the code.
+
+3. Poll for approval every 5 seconds:
    ```bash
-   bash scripts/setup.sh
+   curl -s -X POST https://mcp.getdex.com/device/token \
+     -H "Content-Type: application/json" \
+     -d '{"device_code": "<device_code>"}'
    ```
+   - `{"error": "authorization_pending"}` → keep polling
+   - `{"api_key": "dex_..."}` → done, save the key
 
-The script will:
-- Download the pre-built CLI binary for your platform from [GitHub Releases](https://github.com/getdex/agent-skills/releases)
-- Authenticate using your API key
-- Save the key to `~/.dex/api-key` (chmod 600) so you only need to provide it once
+4. Save the API key:
+   ```bash
+   mkdir -p ~/.dex && echo "<api_key>" > ~/.dex/api-key && chmod 600 ~/.dex/api-key
+   ```
+   For CLI: `dex auth --token <api_key>`
 
-Subsequent runs reuse the saved key — no need to export `DEX_API_KEY` again.
-
-**Headless detection triggers:** `$DEX_API_KEY` is set, `~/.dex/api-key` exists, SSH session without `$DISPLAY`, or Linux without any display server.
+For CI/automation with no human present, use the API key method with `DEX_API_KEY` environment variable.
 
 ## Data Model
 
@@ -113,30 +112,21 @@ Call `dex_*` tools directly. All tools accept and return JSON.
 
 ### CLI Mode
 
-Use the CLI at `~/.dex/bin/dex`. Every MCP tool maps to a CLI subcommand:
+Use the `dex` command. CLIHub generates subcommands from MCP tool names (replacing `_` with `-`):
 
-| MCP Tool | CLI Command |
-|----------|------------|
-| `dex_search_contacts` | `dex dex-search-contacts --query "..."` |
-| `dex_get_contact` | `dex dex-get-contact --id "..."` |
-| `dex_create_contact` | `dex dex-create-contact --first-name "..." --last-name "..."` |
-| `dex_update_contact` | `dex dex-update-contact --id "..." --company "..."` |
-| `dex_delete_contacts` | `dex dex-delete-contacts --from-json '{"contact_ids":["..."]}'` |
-| `dex_merge_contacts` | `dex dex-merge-contacts --from-json '{"contact_id_groups":[["id1","id2"]]}'` |
-| `dex_manage_tags` | `dex dex-manage-tags --action list` |
-| `dex_manage_groups` | `dex dex-manage-groups --action list` |
-| `dex_manage_notes` | `dex dex-manage-notes --action list --contact-id "..."` |
-| `dex_manage_reminders` | `dex dex-manage-reminders --action list` |
-| `dex_manage_custom_fields` | `dex dex-manage-custom-fields --action list` |
-
-For complex inputs, use `--from-json`:
 ```bash
-dex dex-manage-tags --from-json '{"action":"add_to_contacts","tag_ids":["id1"],"contact_ids":["c1","c2"]}'
+dex dex-search-contacts --query "John"
+dex dex-list-contacts --limit 100
+dex dex-create-contact --first-name "Jane" --last-name "Doe"
+dex dex-list-tags
+dex dex-create-reminder --text "Follow up" --due-at-date "2026-03-15"
 ```
 
 Use `--output json` for machine-readable output, `--output text` (default) for human-readable.
 
-Run `dex [command] --help` for full flag documentation on any subcommand.
+Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
+
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 38 tools to CLI commands.
 
 ## Core Workflows
 
@@ -147,7 +137,8 @@ search → get details (with notes if needed)
 ```
 
 - Search by name, email, company, or any keyword
-- Use `*` or empty query to browse recent contacts (sorted by last interaction)
+- Use empty query to browse recent contacts (sorted by last interaction)
+- Use `dex_list_contacts` for bulk iteration (up to 500 per page, cursor-paginated)
 - Include `include_notes: true` when user needs interaction history
 
 ### 2. Add a New Contact
@@ -166,7 +157,7 @@ create contact → (optionally) add to groups → apply tags → set reminder
 (optional) list note types → create note on contact timeline
 ```
 
-- Discover note types first with `list_note_types` action to pick the right one (Meeting, Call, Coffee, Note, etc.)
+- Discover note types first with `dex_list_note_types` to pick the right one (Meeting, Call, Coffee, Note, etc.)
 - Set `event_time` to when the interaction happened, not when logging it
 - Keep notes concise but capture key details, action items, and personal context
 
@@ -197,11 +188,11 @@ Best practice: Use tags for attributes ("Investor", "Engineer", "Met at Conferen
 ### 6. Manage Custom Fields
 
 ```
-list fields → create field definition → batch update contacts
+list fields → create field definition → batch set values on contacts
 ```
 
 - Three field types: `input` (free text), `autocomplete` (dropdown with options), `datepicker`
-- Use `batch_update_contacts` to set values on multiple contacts at once
+- Use `dex_set_custom_field_values` to set values on multiple contacts at once
 - For autocomplete fields, provide `categories` array with the allowed options
 
 ### 7. Meeting Prep
@@ -228,8 +219,10 @@ search for potential duplicates → confirm with user → merge
 
 ### Pagination
 
-All list operations support cursor-based pagination:
-- Pass `limit` to control page size (default: 10)
+List operations use cursor-based pagination:
+- `dex_list_contacts`: default 100 per page, max 500
+- `dex_search_contacts`: default 50 per page, max 200
+- Other list tools: default 10 per page
 - Check `has_more` in response
 - Pass `next_cursor` from previous response to get next page
 - Iterate until `has_more: false` to get all results
@@ -243,7 +236,7 @@ Always confirm with the user before:
 
 ### Response Truncation
 
-Responses are capped at 25,000 characters. If truncated, use pagination to fetch remaining results.
+Responses are capped at 25,000 characters. If truncated, the response preserves pagination metadata (`next_cursor`, `has_more`) so you can fetch the next page. Use smaller `limit` values if responses are being truncated.
 
 ### Date Formats
 
@@ -254,4 +247,5 @@ Responses are capped at 25,000 characters. If truncated, use pagination to fetch
 ## Detailed References
 
 - **[Tool Reference](references/tools-reference.md)** — Complete parameter documentation for every tool, with examples
+- **[CLI Command Reference](references/cli-commands.md)** — Full MCP tool → CLI command mapping table (only needed for CLI mode)
 - **[CRM Workflows](references/crm-workflows.md)** — Relationship management best practices, follow-up cadences, and strategies for being an effective CRM assistant

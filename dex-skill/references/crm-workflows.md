@@ -158,10 +158,9 @@ When a user wants to "stay in touch" with someone:
 3. Set `due_at_date` to the next desired check-in date
 4. Link to the contact with `contact_id`
 
-**Example:**
+**Example** (`dex_create_reminder`):
 ```json
 {
-  "action": "create",
   "text": "Monthly check-in — see how the product launch went",
   "due_at_date": "2026-04-01",
   "contact_id": "c1",
@@ -177,7 +176,7 @@ When a user wants to "stay in touch" with someone:
 
 When a user wants to re-engage dormant contacts:
 
-1. Search with `*` to browse all contacts by last interaction date
+1. Search with empty query to browse all contacts by last interaction date, or use `dex_list_contacts` for bulk iteration
 2. Identify contacts not interacted with recently
 3. For each, check existing notes for context
 4. Suggest a personalized reason to reach out based on their history
@@ -189,7 +188,7 @@ When a user wants to organize their CRM:
 1. List all existing tags and groups to understand current structure
 2. Search contacts by category (company, keyword, etc.)
 3. Create new tags/groups as needed
-4. Bulk assign using `add_to_contacts` / `add_contacts`
+4. Bulk assign using `dex_add_tags_to_contacts` / `dex_add_contacts_to_group`
 
 ### The "Duplicate Cleanup" Flow
 
@@ -206,9 +205,9 @@ When a user suspects duplicates:
 
 Several tools support batch operations for efficiency:
 
-- **Tags**: `add_to_contacts` / `remove_from_contacts` — apply tags to multiple contacts at once
-- **Groups**: `add_contacts` / `remove_contacts` — manage group membership in bulk
-- **Custom Fields**: `batch_update_contacts` — set field values on multiple contacts
+- **Tags**: `dex_add_tags_to_contacts` / `dex_remove_tags_from_contacts` — apply or remove tags on multiple contacts at once
+- **Groups**: `dex_add_contacts_to_group` / `dex_remove_contacts_from_group` — manage group membership in bulk
+- **Custom Fields**: `dex_set_custom_field_values` — set field values on multiple contacts
 - **Delete**: `dex_delete_contacts` — remove multiple contacts
 - **Merge**: `dex_merge_contacts` — merge multiple duplicate groups simultaneously
 
