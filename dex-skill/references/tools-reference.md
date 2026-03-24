@@ -114,8 +114,10 @@ Create a new contact. No fields are strictly required, but at least one should b
 | `last_name` | string | No | Last name |
 | `company` | string | No | Company name |
 | `job_title` | string | No | Job title |
-| `email` | string | No | Primary email address |
-| `phone` | string | No | Primary phone number |
+| `email` | string | No | Single email address (shorthand) |
+| `emails` | array | No | Email addresses: `[{ email, label? }]` |
+| `phone` | string | No | Single phone number (shorthand) |
+| `phones` | array | No | Phone numbers: `[{ phone_number, label?, country_code? }]` |
 | `linkedin` | string | No | LinkedIn profile URL |
 | `twitter` | string | No | Twitter/X handle |
 | `birthday` | string | No | Birthday (YYYY-MM-DD) |
@@ -128,7 +130,13 @@ Create a new contact. No fields are strictly required, but at least one should b
   "last_name": "Doe",
   "company": "Acme Corp",
   "job_title": "VP Engineering",
-  "email": "jane@acme.com"
+  "emails": [
+    { "email": "jane@acme.com", "label": "Work" },
+    { "email": "jane.doe@gmail.com", "label": "Personal" }
+  ],
+  "phones": [
+    { "phone_number": "+15551234567", "label": "Mobile" }
+  ]
 }
 ```
 
@@ -136,15 +144,36 @@ Create a new contact. No fields are strictly required, but at least one should b
 
 ### dex_update_contact
 
-Partial update — only provided fields are changed.
-
-All fields from `dex_create_contact` plus:
+Partial update — only provided fields are changed. For emails and phone numbers, use `add_*` / `remove_*` params — existing entries are preserved automatically.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Contact ID to update |
+| `first_name` | string | No | First name |
+| `last_name` | string | No | Last name |
+| `company` | string | No | Company name |
+| `job_title` | string | No | Job title |
+| `email` | string | No | Add a single email (shorthand for `add_emails`) |
+| `add_emails` | array | No | Emails to add: `[{ email, label? }]` |
+| `remove_emails` | string[] | No | Email addresses to remove |
+| `phone` | string | No | Add a single phone (shorthand for `add_phones`) |
+| `add_phones` | array | No | Phones to add: `[{ phone_number, label?, country_code? }]` |
+| `remove_phones` | string[] | No | Phone numbers to remove |
+| `linkedin` | string | No | LinkedIn profile URL |
+| `twitter` | string | No | Twitter/X handle |
+| `birthday` | string | No | Birthday (YYYY-MM-DD) |
+| `description` | string | No | Notes about the contact |
+| `website` | string | No | Website URL |
 | `starred` | boolean | No | Star/unstar contact |
 | `is_archived` | boolean | No | Archive/unarchive contact |
+
+```json
+{
+  "id": "contact-uuid",
+  "add_emails": [{ "email": "new@work.com", "label": "Work" }],
+  "remove_phones": ["+15559999999"]
+}
+```
 
 ---
 
