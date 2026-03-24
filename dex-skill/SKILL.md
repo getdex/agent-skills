@@ -47,6 +47,14 @@ npm install -g @getdex/cli
 
 Works with npm, pnpm, and yarn. No postinstall scripts — the binary is bundled in a platform-specific package.
 
+**Keeping the CLI up to date:**
+
+The CLI auto-generates commands from the MCP server's tool schemas at build time. When tools are added or updated on the server, users need to update the CLI to get the new commands. If a user reports a missing command or parameter, suggest updating:
+
+```bash
+npm install -g @getdex/cli@latest
+```
+
 **Path C — No Node.js:**
 
 Direct the user to follow the setup guide at **https://getdex.com/docs/ai/mcp-server** — it has client-specific instructions for Claude Desktop, Claude Code, Cursor, VS Code, and other MCP-capable clients.
@@ -151,6 +159,15 @@ create contact → (optionally) add to groups → apply tags → set reminder
 - Immediately organize: add relevant tags and groups
 - Set a follow-up reminder if the user just met this person
 
+**Bulk import (CSV, spreadsheet, list):**
+```
+batch create contacts → add to group → create note for all
+```
+
+- Use `dex_create_contact` with the `contacts` array (up to 100 per call) for batch creation
+- Use the returned contact IDs to add them all to a group with `dex_add_contacts_to_group`
+- Use `dex_create_note` with `contact_ids` to log a shared note across all imported contacts
+
 ### 3. Log an Interaction
 
 ```
@@ -160,6 +177,7 @@ create contact → (optionally) add to groups → apply tags → set reminder
 - Discover note types first with `dex_list_note_types` to pick the right one (Meeting, Call, Coffee, Note, etc.)
 - Set `event_time` to when the interaction happened, not when logging it
 - Keep notes concise but capture key details, action items, and personal context
+- Use `contact_ids` (plural) to link a single note to multiple contacts (e.g. a group meeting)
 
 ### 4. Set a Reminder
 
