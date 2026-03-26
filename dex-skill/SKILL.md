@@ -10,9 +10,19 @@ description: >
   (9) Authenticate with Dex via /dex-login,
   or any other personal CRM task involving their professional network.
 metadata:
-  version: "2.0.0"
-  openclaw-emoji: "\U0001F91D"
-  openclaw-homepage: https://getdex.com
+  version: "2.0.2"
+  openclaw:
+    emoji: "\U0001F91D"
+    homepage: https://getdex.com
+    skillKey: "dex-skill"
+    requires:
+      bins: ["dex"]
+    install:
+      - id: "npm"
+        kind: "node"
+        package: "@getdex/cli"
+        bins: ["dex"]
+        label: "Install Dex CLI (npm)"
 ---
 
 # Dex Personal CRM
