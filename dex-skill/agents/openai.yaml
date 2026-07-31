@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dex Personal CRM"
+  short_description: "Organize contacts, meetings, follow-ups, and outreach"
+  default_prompt: "Use $dex-skill to organize my network, prepare upcoming meetings, and turn recent meeting notes into follow-ups."
