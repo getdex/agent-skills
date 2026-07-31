@@ -4,13 +4,13 @@ description: >
   Manage your Dex personal CRM — search, filter, create, archive, and update contacts; log notes;
   manage follow-ups, tags, groups, and custom fields; search connected email; and read or manage
   connected calendars.
-  Use this skill when the user wants to: (1) Find or look up a contact, (2) Add or edit contact details,
-  (3) Log a meeting, call, or interaction note, (4) Set a reminder or follow-up task,
-  (5) Organize contacts into groups or apply tags, (6) Track custom data with custom fields,
-  (7) Merge duplicate contacts, (8) Review their relationship history or prepare for a meeting,
-  (9) Search past correspondence, (10) Review, create, reschedule, or cancel calendar events,
-  (11) Archive contacts or manage keep-in-touch cadence, (12) Authenticate with Dex via /dex-login,
-  or any other personal CRM task involving their professional network.
+  Use this skill to: (1) Find, add, or update contacts, (2) Log meetings and notes,
+  (3) Manage reminders and keep-in-touch cadence, (4) Organize tags, groups, and custom fields,
+  (5) Merge or archive contacts, (6) Review relationships or prepare meetings,
+  (7) Search correspondence, (8) Manage calendar events, (9) Categorize, audit, or clean a network,
+  (10) Turn notetaker output or transcripts into notes and follow-ups,
+  (11) Prepare multiple meetings or event follow-up, (12) Authenticate via /dex-login,
+  or handle another personal CRM task involving the user's professional network.
 metadata:
   version: "2.1.0"
   openclaw:
@@ -285,6 +285,31 @@ search for potential duplicates → confirm with user → merge
 - Read `mergedContactIds` from the response to learn which ID survived
 - Always confirm with the user before merging (destructive operation)
 - Can merge multiple groups in a single call
+
+### 11. Handle Outcome-Oriented Requests
+
+For multi-contact or multi-step requests, follow this reusable contract:
+
+```
+define scope → inspect current state → preview proposed outcome → confirm writes → execute → verify
+```
+
+- Treat requests to analyze, recommend, audit, or prepare as read-only unless the user also asks for changes
+- When the user says “all,” paginate the complete relevant dataset and state whether the scope includes active contacts, archived contacts, or both
+- Reuse existing tags, groups, custom fields, contacts, and recent notes before creating anything
+- Separate high-confidence actions from ambiguous records that need review
+- Present exact additions, updates, removals, archives, merges, notes, and reminders before bulk writes
+- Verify changed records with fresh reads and report successes, skips, and failures
+
+Load [CRM Workflows](references/crm-workflows.md) for detailed playbooks when the user asks to:
+
+- Categorize or reorganize their whole network
+- Turn a notetaker summary or transcript into notes, contact updates, and reminders
+- Audit or clean up CRM data
+- Import and follow up with people from an event or roster
+- Review relationship health or plan outreach
+- Prepare a day or week of meetings
+- Build a target contact list from several criteria
 
 ## Important Patterns
 
