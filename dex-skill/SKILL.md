@@ -12,7 +12,7 @@ description: >
   (11) Prepare multiple meetings or event follow-up, (12) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: "2.1.0"
+  version: "2.1.1"
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -75,20 +75,32 @@ Direct the user to follow the setup guide at **https://getdex.com/docs/ai/mcp-se
 
 Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP browser OAuth when available, then device code for an interactive CLI session, and API keys for CI or when the user explicitly chooses one.
 
+**Do not trust `dex auth status` alone.** Status is green if any credential file exists. Verify with a real command such as `dex dex-list-tags`. A `401 unauthorized` after a "successful" login almost always means the CLI is still reading a stale token.
+
+**Where credentials actually live:**
+- `@getdex/cli` reads `~/.clihub/credentials.json` (`auth_type: bearer_token`, `token: dex_…`).
+- Some docs and older agents only write `~/.dex/api-key`. That file is **not** what the CLI sends on MCP calls.
+- After device-code or API-key setup, write **both** files, or the next `dex …` call will 401.
+
+**Cloudflare:** every request to `mcp.getdex.com` must send `User-Agent: dex-cli`. Bare `curl` with no UA returns Cloudflare **1010** (`browser_signature_banned`). That is not an expired code and not a Dex 401.
+
+Never ask the user to paste an API key into chat. Do not print, log, commit, or include it in tool arguments that will be shown back to the user. `dex auth --token <key>` puts the secret on the process argv — do not run that from an agent.
+
 **Option 1 — API Key:**
 1. User generates a key at [Dex Settings > Integrations](https://getdex.com/appv3/settings/api) (requires Professional plan)
-2. Ask the user to run `dex auth --token dex_your_key_here` in their own terminal
-3. Key is saved to `~/.dex/api-key` (chmod 600)
-
-Never ask the user to paste an API key into chat. Do not print, log, commit, or include it in tool arguments that will be shown back to the user.
+2. Ask the user to save it in their own terminal, or write both files below from a local script that never prints the value
+3. Destinations: `~/.dex/api-key` (chmod 600) **and** `~/.clihub/credentials.json` (chmod 600)
 
 **Option 2 — Device Code Flow (works on remote/headless machines):**
 
-Drive this flow directly via HTTP — no browser needed on the machine:
+Drive this flow directly via HTTP — no browser needed on the machine. Always send `User-Agent: dex-cli`.
 
 1. Request a device code:
    ```bash
-   curl -s -X POST https://mcp.getdex.com/device/code -H "Content-Type: application/json"
+   curl -s -X POST https://mcp.getdex.com/device/code \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "User-Agent: dex-cli"
    ```
    Response: `{ "device_code": "...", "user_code": "ABCD-EFGH", "verification_uri": "https://...", "expires_in": 600, "interval": 5 }`
 
@@ -98,19 +110,44 @@ Drive this flow directly via HTTP — no browser needed on the machine:
    ```bash
    curl -s -X POST https://mcp.getdex.com/device/token \
      -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "User-Agent: dex-cli" \
      -d '{"device_code": "<device_code>"}'
    ```
-   - `{"error": "authorization_pending"}` → keep polling
-   - A response containing `api_key` → stop polling and save it without rendering the value
+   - HTTP 200 + `{"error": "authorization_pending"}` → keep polling (this is **not** success)
+   - HTTP 429 + `{"error": "slow_down"}` → wait longer than `interval`
+   - HTTP 400 + `{"error": "expired_token"}` → request a new device code
+   - HTTP 403 Cloudflare 1010 → add `User-Agent: dex-cli` and start over
+   - HTTP 200 + `api_key` → stop polling. Do not print the body.
 
-4. Create the protected destination, then use local secret-aware parsing to write only the `api_key` value directly to it:
+4. Save the key to **both** locations without printing it:
    ```bash
-   install -d -m 700 ~/.dex
+   install -d -m 700 ~/.dex ~/.clihub
    umask 077
    ```
-   Write the parsed key bytes to `~/.dex/api-key` without printing them and ensure the file mode is `600`. If the execution surface cannot keep the successful response out of chat or tool logs, stop and ask the user to complete CLI authentication in their own terminal.
+   - `~/.dex/api-key` — raw `dex_…` bytes, mode `600`, no trailing commentary
+   - `~/.clihub/credentials.json` — mode `600`, this schema (CLI source of truth):
 
-For CI/automation with no human present, use the API key method with `DEX_API_KEY` environment variable.
+   ```json
+   {
+     "version": 2,
+     "servers": {
+       "https://mcp.getdex.com/mcp": {
+         "type": "bearer",
+         "auth_type": "bearer_token",
+         "token": "<api_key>"
+       }
+     }
+   }
+   ```
+
+   If the execution surface cannot keep the successful `/device/token` response out of chat or tool logs, stop and ask the user to finish in their own terminal.
+
+5. Verify with `dex dex-list-tags` (or another read). If that 401s, `~/.clihub/credentials.json` was not updated.
+
+There is no `dex auth login` subcommand in current `@getdex/cli` (1.0.x) even if some READMEs mention it. Use this HTTP device flow.
+
+For CI/automation with no human present, use the API key method with `DEX_API_KEY` environment variable **and** the credentials file above.
 
 ## Data Model
 
