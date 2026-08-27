@@ -12,7 +12,7 @@ description: >
   (11) Prepare multiple meetings or event follow-up, (12) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: "2.1.1"
+  version: "2.1.2"
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -186,7 +186,7 @@ Use `--output json` for machine-readable output, `--output text` (default) for h
 
 Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
 
-See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 47 tools to CLI commands.
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 50 tools to CLI commands.
 
 ## Core Workflows
 
