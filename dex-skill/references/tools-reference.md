@@ -11,10 +11,13 @@ Complete parameter documentation for all Dex MCP tools.
   - [dex_create_contact](#dex_create_contact)
   - [dex_update_contact](#dex_update_contact)
   - [dex_complete_keep_in_touch](#dex_complete_keep_in_touch)
+  - [dex_set_keep_in_touch](#dex_set_keep_in_touch)
   - [dex_archive_contacts](#dex_archive_contacts)
   - [dex_delete_contacts](#dex_delete_contacts)
   - [dex_merge_contacts](#dex_merge_contacts)
   - [dex_filter_contacts](#dex_filter_contacts)
+  - [dex_add_related_contacts](#dex_add_related_contacts)
+  - [dex_remove_related_contacts](#dex_remove_related_contacts)
 - [Tags](#tags)
   - [dex_list_tags](#dex_list_tags)
   - [dex_get_tag](#dex_get_tag)
@@ -222,6 +225,23 @@ Completing records that the user was just in touch and recalculates the next rem
 
 ---
 
+### dex_set_keep_in_touch
+
+Set or clear the keep-in-touch cadence for up to 500 contacts in one call — the bulk companion to `dex_update_contact`'s `keep_in_touch` field.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `contact_ids` | array | Yes | Contact IDs to put on the cadence (max 500 per call) |
+| `cadence` | string | Yes | Applied to ALL of `contact_ids`: a reminder interval, `"never"` (don't keep in touch), or `"unset"` (no cadence) |
+
+Intervals: `"7 days"` = weekly, `"14 days"` = every 2 weeks, `"1 mon"` = monthly, `"42 days"` = every 6 weeks, `"3 mons"` = quarterly, `"6 mons"` = every 6 months, `"1 year"` = yearly. Every value overwrites whatever cadence each contact already has — and `"never"`/`"unset"` leave nothing in its place — so confirm with the user before changing a large set. Marking a due keep-in-touch as done is `dex_complete_keep_in_touch`, not this tool.
+
+```json
+{ "contact_ids": ["contact-uuid-1", "contact-uuid-2"], "cadence": "3 mons" }
+```
+
+---
+
 ### dex_archive_contacts
 
 Archive or restore up to 500 contacts while preserving notes, reminders, and history. Prefer this reversible operation over deletion for cleanup.
@@ -310,6 +330,40 @@ Custom-field operators: `contains`, `eq`, `in`, `not_in`, `present`, `absent`, `
   "last_interaction_before": "2026-01-01T00:00:00Z",
   "limit": 50
 }
+```
+
+---
+
+### dex_add_related_contacts
+
+Link one or more contacts to a contact as related contacts (e.g. family members, colleagues, people met through them).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `contact_id` | string | Yes | The contact to link relations onto |
+| `contact_ids` | array | Yes | Contact IDs to relate to `contact_id` |
+
+Relations are symmetric — linking A to B also links B to A — and carry no relationship label, so record the nature of the relationship in a note or the description instead. Resolve names to IDs with `dex_search_contacts` first. Related contacts appear in `dex_get_contact` under `related_contacts`. Re-linking an existing pair is a no-op.
+
+```json
+{ "contact_id": "contact-uuid", "contact_ids": ["relative-uuid-1", "relative-uuid-2"] }
+```
+
+---
+
+### dex_remove_related_contacts
+
+Unlink one or more related contacts from a contact.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `contact_id` | string | Yes | The contact to unlink relations from |
+| `contact_ids` | array | Yes | Contact IDs to unlink from `contact_id` |
+
+Relations are symmetric, so removing A↔B clears the link from both sides. The contacts themselves are not modified or deleted.
+
+```json
+{ "contact_id": "contact-uuid", "contact_ids": ["relative-uuid-1"] }
 ```
 
 ---
