@@ -859,12 +859,12 @@ Calendar tools operate live against all connected Google and Microsoft accounts.
 
 List or search events across all connected calendars. Defaults to now through the next seven days.
 
-| Parameter | Type         | Required | Description                                                                               |
-| --------- | ------------ | -------- | ----------------------------------------------------------------------------------------- |
-| `start`   | ISO datetime | No       | Range start with offset; defaults to now                                                  |
-| `end`     | ISO datetime | No       | Range end with offset; defaults to seven days after `start`                               |
-| `query`   | string       | No       | Plain-text match across title, description, location, and attendees                       |
-| `limit`   | integer      | No       | Maximum events TOTAL across all connected calendars, earliest first (default 50, max 250) |
+| Parameter | Type         | Required | Description                                                                                                                                                                                                                                                                                                                                         |
+| --------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`   | ISO datetime | No       | Range start with offset; defaults to now                                                                                                                                                                                                                                                                                                            |
+| `end`     | ISO datetime | No       | Range end with offset; defaults to seven days after `start`                                                                                                                                                                                                                                                                                         |
+| `query`   | string       | No       | Plain-text match across title, description, location, and attendees                                                                                                                                                                                                                                                                                 |
+| `limit`   | integer      | No       | Max events PER connected calendar, not a total — with 2 accounts a limit of 3 can return 6 (default 50, max 250). Results are merged in chronological order. Providers truncate newest-first, so a small limit returns the LATEST events in the range, not the next ones — narrow `start`/`end` instead of relying on `limit` to mean "the next N". |
 
 **Returns:** `{ items: CalendarEvent[], count: number, _truncated?: ... }` as a single batch without a cursor.
 
