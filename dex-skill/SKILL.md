@@ -310,7 +310,7 @@ When a user says "I have a meeting with X":
 - Confirm before creation when attendees may receive invitations
 - On update, `attendees` replaces the whole list; fetch the event first and include everyone who should remain
 - A recurring series ID updates the whole series; state that scope before confirmation
-- A calendar create/update derives its idempotency key from the call's content, so an identical retry after a timeout replays the first response instead of creating a second event and re-inviting everyone. This does NOT generalise: `dex_create_contact`, `dex_create_group`, `dex_create_tag` and `dex_create_custom_field` carry a fresh key per call, so a retry of those duplicates. `dex_create_note` and `dex_create_reminder` are safe to retry only when you pass your own `idempotency_key`.
+- A calendar create/update derives its idempotency key from the call's content, so an identical retry after a timeout replays the first response instead of creating a second event and re-inviting everyone. This does NOT generalise: `dex_create_contact`, `dex_create_group`, `dex_create_tag` and `dex_create_custom_field` carry a fresh key per call, so a retry of those duplicates. `dex_create_note` and `dex_create_reminder` are safe to retry only when you pass your own `idempotency_key` — reuse the SAME key and the same arguments, within the server's 24-hour window, and the original row comes back instead of a duplicate. **`dex_create_note` additionally requires an explicit `event_time` whenever `idempotency_key` is present** (it is rejected otherwise), because a defaulted "now" would differ on every attempt and defeat the replay. Set `event_time` yourself when you intend to retry.
 
 An update cannot move an event between connected accounts. To transfer one, fetch the original, confirm creating a replacement on the target account, then separately confirm deleting the original. Preserve the full attendee list and details, and warn that organizer identity, RSVP state, conferencing data, and provider notifications may change.
 
@@ -330,7 +330,7 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 - `dex_research_contacts` runs Dex Research for up to 5 contacts per call: a paid web search + page extraction + LLM summary that takes a minute or more per contact. Confirm with the user before running it on more than a couple of contacts
 - Notes under 30 days old are served from cache; pass `force: true` only when the user explicitly wants a fresh run
 - Quote findings with their citations (`[[n]]` markers resolve into `sources`) and mention `identity_confidence` when it is not `high`
-- A run fills empty `linkedin` / `website` fields itself; email and phone findings come back `pending` — confirm with the user, then apply with `dex_update_contact`
+- A run fills empty `linkedin` / `website` fields itself **only from high-confidence findings**, reported in `applied`; it never overwrites an existing value. A lower-confidence `linkedin`/`website` finding comes back `pending`, exactly like every email and phone finding — check each row's `status` rather than assuming a field was filled. Anything `pending` needs the user's confirmation, then `dex_update_contact` to apply it
 - `in_progress` means another request is already researching that contact: read it back later instead of running again
 
 ### 11. Archive, Delete, or Merge

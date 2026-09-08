@@ -138,22 +138,26 @@ Create one or more contacts. Supports two modes:
 - **Single mode:** Pass fields directly (backward compatible)
 - **Batch mode:** Pass a `contacts` array for bulk creation (e.g. CSV import, up to 100 at once)
 
-| Parameter     | Type   | Required | Description                                                                                                                               |
-| ------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `first_name`  | string | No       | First name (single mode)                                                                                                                  |
-| `last_name`   | string | No       | Last name (single mode)                                                                                                                   |
-| `company`     | string | No       | Company name (single mode)                                                                                                                |
-| `job_title`   | string | No       | Job title (single mode)                                                                                                                   |
-| `email`       | string | No       | Single email address shorthand (single mode)                                                                                              |
-| `emails`      | array  | No       | Email addresses: `[{ email, label? }]` (single mode)                                                                                      |
-| `phone`       | string | No       | Single phone number shorthand (single mode)                                                                                               |
-| `phones`      | array  | No       | Phone numbers: `[{ phone_number, label?, country_code? }]` (single mode)                                                                  |
-| `linkedin`    | string | No       | LinkedIn profile URL (single mode)                                                                                                        |
-| `twitter`     | string | No       | Twitter/X handle (single mode)                                                                                                            |
-| `birthday`    | string | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown (single mode). The year is stored separately, so a full date keeps its year. |
-| `description` | string | No       | Notes about the contact (single mode)                                                                                                     |
-| `website`     | string | No       | Website URL (single mode)                                                                                                                 |
-| `contacts`    | array  | No       | Array of contacts for batch creation (max 100). Each item accepts the same fields above. When provided, top-level fields are ignored.     |
+| Parameter     | Type   | Required | Description                                                                                                                                                                      |
+| ------------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `first_name`  | string | No       | First name (single mode)                                                                                                                                                         |
+| `last_name`   | string | No       | Last name (single mode)                                                                                                                                                          |
+| `company`     | string | No       | Company name (single mode)                                                                                                                                                       |
+| `job_title`   | string | No       | Job title (single mode)                                                                                                                                                          |
+| `email`       | string | No       | Single email address shorthand (single mode)                                                                                                                                     |
+| `emails`      | array  | No       | Email addresses: `[{ email, label? }]` (single mode)                                                                                                                             |
+| `phone`       | string | No       | Single phone number shorthand (single mode)                                                                                                                                      |
+| `phones`      | array  | No       | Phone numbers: `[{ phone_number, label?, country_code? }]` (single mode)                                                                                                         |
+| `linkedin`    | string | No       | LinkedIn profile URL (single mode)                                                                                                                                               |
+| `twitter`     | string | No       | Twitter/X handle (single mode)                                                                                                                                                   |
+| `birthday`    | string | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown (single mode). The year is stored separately, so a full date keeps its year. **`--02-29` is rejected** — see below. |
+| `description` | string | No       | Notes about the contact (single mode)                                                                                                                                            |
+| `website`     | string | No       | Website URL (single mode)                                                                                                                                                        |
+| `contacts`    | array  | No       | Array of contacts for batch creation (max 100). Each item accepts the same fields above. When provided, top-level fields are ignored.                                            |
+
+**Birthdays: February 29 is a special case.** A year-less birthday is stored against the sentinel year 2100, which is not a leap year, so **`--02-29` is rejected** with an explanation. A full date such as `1996-02-29` is accepted but stored wrong — it silently rolls to March 1. Until that is fixed, ask the user whether they want `--02-28` or a specific full leap-year date they are willing to see as March 1; do not quietly pick one.
+
+Only the real month lengths are accepted, so `--02-30`, `--04-31`, `--06-31`, `--09-31` and `--11-31` are rejected too.
 
 **Single mode example:**
 
@@ -200,27 +204,29 @@ Create one or more contacts. Supports two modes:
 
 Partial update — only provided fields are changed. For emails and phone numbers, use `add_*` / `remove_*` params — existing entries are preserved automatically.
 
-| Parameter       | Type     | Required | Description                                                                                                                                                         |
-| --------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`            | string   | Yes      | Contact ID to update                                                                                                                                                |
-| `first_name`    | string   | No       | First name                                                                                                                                                          |
-| `last_name`     | string   | No       | Last name                                                                                                                                                           |
-| `company`       | string   | No       | Company name                                                                                                                                                        |
-| `job_title`     | string   | No       | Job title                                                                                                                                                           |
-| `email`         | string   | No       | Add a single email (shorthand for `add_emails`)                                                                                                                     |
-| `add_emails`    | array    | No       | Emails to add: `[{ email, label? }]`                                                                                                                                |
-| `remove_emails` | string[] | No       | Email addresses to remove                                                                                                                                           |
-| `phone`         | string   | No       | Add a single phone (shorthand for `add_phones`)                                                                                                                     |
-| `add_phones`    | array    | No       | Phones to add: `[{ phone_number, label?, country_code? }]`                                                                                                          |
-| `remove_phones` | string[] | No       | Phone numbers to remove                                                                                                                                             |
-| `linkedin`      | string   | No       | LinkedIn profile URL                                                                                                                                                |
-| `twitter`       | string   | No       | Twitter/X handle                                                                                                                                                    |
-| `birthday`      | string   | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown; pass `null` to clear                                                                                  |
-| `description`   | string   | No       | Notes about the contact                                                                                                                                             |
-| `website`       | string   | No       | Website URL                                                                                                                                                         |
-| `starred`       | boolean  | No       | Star/unstar contact                                                                                                                                                 |
-| `keep_in_touch` | enum     | No       | Cadence: `7 days`, `14 days`, `1 mon`, `42 days`, `3 mons`, `6 mons`, `1 year`, `never`, or `unset`                                                                 |
-| `is_archived`   | boolean  | No       | `true` archives this one contact (hidden from lists, search, and reminders; reversible), `false` restores it. Confirm first; use `dex_archive_contacts` for several |
+**Omitting a field and sending `null` are different.** Every parameter typed `string / null` below accepts an explicit `null` that CLEARS the stored value; omitting it leaves the value alone. Only send `null` when the user asked to remove something. Clearing `birthday` clears the separately stored year with it.
+
+| Parameter       | Type          | Required | Description                                                                                                                                                         |
+| --------------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | string        | Yes      | Contact ID to update                                                                                                                                                |
+| `first_name`    | string        | No       | First name                                                                                                                                                          |
+| `last_name`     | string        | No       | Last name                                                                                                                                                           |
+| `company`       | string / null | No       | Company name                                                                                                                                                        |
+| `job_title`     | string / null | No       | Job title                                                                                                                                                           |
+| `email`         | string        | No       | Add a single email (shorthand for `add_emails`)                                                                                                                     |
+| `add_emails`    | array         | No       | Emails to add: `[{ email, label? }]`                                                                                                                                |
+| `remove_emails` | string[]      | No       | Email addresses to remove                                                                                                                                           |
+| `phone`         | string        | No       | Add a single phone (shorthand for `add_phones`)                                                                                                                     |
+| `add_phones`    | array         | No       | Phones to add: `[{ phone_number, label?, country_code? }]`                                                                                                          |
+| `remove_phones` | string[]      | No       | Phone numbers to remove                                                                                                                                             |
+| `linkedin`      | string / null | No       | LinkedIn profile URL                                                                                                                                                |
+| `twitter`       | string / null | No       | Twitter/X handle                                                                                                                                                    |
+| `birthday`      | string / null | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown; pass `null` to clear. `--02-29` is rejected — see the February 29 note under `dex_create_contact`     |
+| `description`   | string / null | No       | Notes about the contact                                                                                                                                             |
+| `website`       | string / null | No       | Website URL                                                                                                                                                         |
+| `starred`       | boolean       | No       | Star/unstar contact                                                                                                                                                 |
+| `keep_in_touch` | enum          | No       | Cadence: `7 days`, `14 days`, `1 mon`, `42 days`, `3 mons`, `6 mons`, `1 year`, `never`, or `unset`                                                                 |
+| `is_archived`   | boolean       | No       | `true` archives this one contact (hidden from lists, search, and reminders; reversible), `false` restores it. Confirm first; use `dex_archive_contacts` for several |
 
 ```json
 {
@@ -654,17 +660,19 @@ List available note types (Meeting, Call, Coffee, Note, etc.). Call this before 
 
 Create a new note on a contact's timeline. Supports linking to one or multiple contacts.
 
-| Parameter          | Type              | Required | Description                                                                             |
-| ------------------ | ----------------- | -------- | --------------------------------------------------------------------------------------- |
-| `content`          | string            | Yes      | Note content/body                                                                       |
-| `contact_id`       | string (UUID)     | No       | Associate note to a single contact                                                      |
-| `contact_ids`      | string[] (UUID)   | No       | Associate note to multiple contacts at once. Can be combined with `contact_id`.         |
-| `event_time`       | string (ISO 8601) | No       | When the event occurred (defaults to now)                                               |
-| `note_type_id`     | string (UUID)     | No       | Note type ID from `dex_list_note_types` (falls back to "Note")                          |
-| `include_contacts` | boolean           | No       | Include linked contacts in the returned note                                            |
-| `idempotency_key`  | string            | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second note |
+| Parameter          | Type              | Required | Description                                                                                                        |
+| ------------------ | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `content`          | string            | Yes      | Note content/body                                                                                                  |
+| `contact_id`       | string (UUID)     | No       | Associate note to a single contact                                                                                 |
+| `contact_ids`      | string[] (UUID)   | No       | Associate note to multiple contacts at once. Can be combined with `contact_id`.                                    |
+| `event_time`       | string (ISO 8601) | No       | When the event occurred (defaults to now)                                                                          |
+| `note_type_id`     | string (UUID)     | No       | Note type ID from `dex_list_note_types` (falls back to "Note")                                                     |
+| `include_contacts` | boolean           | No       | Include linked contacts in the returned note                                                                       |
+| `idempotency_key`  | string            | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second note. **Requires `event_time`** |
 
-**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate note. Generate one key per logical note, not per attempt.
+**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate note. Generate one key per logical note, not per attempt. The replay window is **24 hours**; after it the key is forgotten and the same call creates a new note.
+
+**`event_time` is required whenever `idempotency_key` is present** — the call is rejected without it. A defaulted `event_time` would be "now" on each attempt, so the retry would carry a different body and defeat the replay. Decide the event time up front and send it on every attempt.
 
 **Single contact:**
 
@@ -782,7 +790,9 @@ Create a new reminder/task.
 | `recurrence`      | enum                | No       | `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly`                        |
 | `idempotency_key` | string              | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second reminder |
 
-**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate. Generate one key per logical reminder, not per attempt. Without a key, a retry creates a second row.
+**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate. Generate one key per logical reminder, not per attempt. The replay window is **24 hours**; after it the key is forgotten and the same call creates a new reminder. Without a key, a retry creates a second row.
+
+Unlike `dex_create_note`, this tool has no extra required field when a key is supplied — `due_at_date` is already mandatory, so the request body is stable across attempts on its own.
 
 ```json
 {
@@ -1068,7 +1078,7 @@ Run Dex Research on one or more contacts: a web search, page extraction, and an 
 
 A contact researched within the last 30 days returns its cached note at no cost. Each entry in `items` carries an `outcome`; `error` and `in_progress` rows are listed before `ok` rows so a truncated response drops notes (still stored) rather than notices:
 
-- `ok` — `research` holds the note: `one_line_summary` and `sections` (`current_focus`, `background`, `interests`) with `[[n]]` citation markers into `sources`, `identity_confidence`, and `fields` (linkedin / website / email / phone findings with `confidence`, `evidence`, and a `status`). `research.status` is `success` or `no_data_found` (with a `reason`). `applied` reports which **empty** `linkedin` / `website` fields the run filled in; existing values are never overwritten. Email and phone findings stay `pending` — confirm with the user before applying them with `dex_update_contact`.
+- `ok` — `research` holds the note: `one_line_summary` and `sections` (`current_focus`, `background`, `interests`) with `[[n]]` citation markers into `sources`, `identity_confidence`, and `fields` (linkedin / website / email / phone findings with `confidence`, `evidence`, and a `status`). `research.status` is `success` or `no_data_found` (with a `reason`). `applied` reports which **empty** `linkedin` / `website` fields the run filled in — **only high-confidence findings are auto-applied**, and existing values are never overwritten. Read each finding's own `status` rather than assuming: `auto_applied` (the run wrote it), `already_present` (the contact held that exact value), or `pending` (not on the contact). A lower-confidence `linkedin`/`website` finding is `pending` just like every email and phone finding. Anything `pending` needs the user's confirmation before you apply it with `dex_update_contact`.
 - `in_progress` — another request already holds that contact's run lock. Read it back later with `dex_get_contact_research`; do not run again.
 - `error` — see `error`. A request that ended before the run finished may still complete server-side: check `dex_get_contact_research` in a minute or two and re-run only if nothing is stored.
 
