@@ -43,6 +43,7 @@ Complete parameter documentation for all Dex MCP tools.
   - [dex_update_note](#dex_update_note)
   - [dex_delete_note](#dex_delete_note)
 - [Reminders](#reminders)
+  - [dex_list_upcoming_reminders_and_birthdays](#dex_list_upcoming_reminders_and_birthdays)
   - [dex_list_reminders](#dex_list_reminders)
   - [dex_get_reminder](#dex_get_reminder)
   - [dex_create_reminder](#dex_create_reminder)
@@ -195,27 +196,27 @@ Create one or more contacts. Supports two modes:
 
 Partial update — only provided fields are changed. For emails and phone numbers, use `add_*` / `remove_*` params — existing entries are preserved automatically.
 
-| Parameter       | Type     | Required | Description                                                                                         |
-| --------------- | -------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `id`            | string   | Yes      | Contact ID to update                                                                                |
-| `first_name`    | string   | No       | First name                                                                                          |
-| `last_name`     | string   | No       | Last name                                                                                           |
-| `company`       | string   | No       | Company name                                                                                        |
-| `job_title`     | string   | No       | Job title                                                                                           |
-| `email`         | string   | No       | Add a single email (shorthand for `add_emails`)                                                     |
-| `add_emails`    | array    | No       | Emails to add: `[{ email, label? }]`                                                                |
-| `remove_emails` | string[] | No       | Email addresses to remove                                                                           |
-| `phone`         | string   | No       | Add a single phone (shorthand for `add_phones`)                                                     |
-| `add_phones`    | array    | No       | Phones to add: `[{ phone_number, label?, country_code? }]`                                          |
-| `remove_phones` | string[] | No       | Phone numbers to remove                                                                             |
-| `linkedin`      | string   | No       | LinkedIn profile URL                                                                                |
-| `twitter`       | string   | No       | Twitter/X handle                                                                                    |
-| `birthday`      | string   | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown; pass `null` to clear                  |
-| `description`   | string   | No       | Notes about the contact                                                                             |
-| `website`       | string   | No       | Website URL                                                                                         |
-| `starred`       | boolean  | No       | Star/unstar contact                                                                                 |
-| `keep_in_touch` | enum     | No       | Cadence: `7 days`, `14 days`, `1 mon`, `42 days`, `3 mons`, `6 mons`, `1 year`, `never`, or `unset` |
-| `is_archived`   | boolean  | No       | Archive/unarchive one contact; use `dex_archive_contacts` for bulk cleanup                          |
+| Parameter       | Type     | Required | Description                                                                                                                                                         |
+| --------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | string   | Yes      | Contact ID to update                                                                                                                                                |
+| `first_name`    | string   | No       | First name                                                                                                                                                          |
+| `last_name`     | string   | No       | Last name                                                                                                                                                           |
+| `company`       | string   | No       | Company name                                                                                                                                                        |
+| `job_title`     | string   | No       | Job title                                                                                                                                                           |
+| `email`         | string   | No       | Add a single email (shorthand for `add_emails`)                                                                                                                     |
+| `add_emails`    | array    | No       | Emails to add: `[{ email, label? }]`                                                                                                                                |
+| `remove_emails` | string[] | No       | Email addresses to remove                                                                                                                                           |
+| `phone`         | string   | No       | Add a single phone (shorthand for `add_phones`)                                                                                                                     |
+| `add_phones`    | array    | No       | Phones to add: `[{ phone_number, label?, country_code? }]`                                                                                                          |
+| `remove_phones` | string[] | No       | Phone numbers to remove                                                                                                                                             |
+| `linkedin`      | string   | No       | LinkedIn profile URL                                                                                                                                                |
+| `twitter`       | string   | No       | Twitter/X handle                                                                                                                                                    |
+| `birthday`      | string   | No       | Birthday `YYYY-MM-DD`, or `--MM-DD` when the year is unknown; pass `null` to clear                                                                                  |
+| `description`   | string   | No       | Notes about the contact                                                                                                                                             |
+| `website`       | string   | No       | Website URL                                                                                                                                                         |
+| `starred`       | boolean  | No       | Star/unstar contact                                                                                                                                                 |
+| `keep_in_touch` | enum     | No       | Cadence: `7 days`, `14 days`, `1 mon`, `42 days`, `3 mons`, `6 mons`, `1 year`, `never`, or `unset`                                                                 |
+| `is_archived`   | boolean  | No       | `true` archives this one contact (hidden from lists, search, and reminders; reversible), `false` restores it. Confirm first; use `dex_archive_contacts` for several |
 
 ```json
 {
@@ -264,17 +265,23 @@ Intervals: `"7 days"` = weekly, `"14 days"` = every 2 weeks, `"1 mon"` = monthly
 
 ### dex_archive_contacts
 
-Archive or restore up to 500 contacts while preserving notes, reminders, and history. Prefer this reversible operation over deletion for cleanup.
+Archive or restore up to 500 contacts while preserving notes, reminders, and history. Prefer this reversible operation over deletion for cleanup. Always show the user which contacts will be archived and get their confirmation first.
 
-| Parameter     | Type            | Required | Description                                 |
-| ------------- | --------------- | -------- | ------------------------------------------- |
-| `contact_ids` | string[] (UUID) | Yes      | Contact IDs to archive or restore (max 500) |
-| `archived`    | boolean         | No       | `true` (default) archives; `false` restores |
+| Parameter        | Type            | Required     | Description                                                                              |
+| ---------------- | --------------- | ------------ | ---------------------------------------------------------------------------------------- |
+| `contact_ids`    | string[] (UUID) | Yes          | Contact IDs to archive or restore (max 500)                                              |
+| `archived`       | boolean         | No           | `true` (default) archives; `false` restores                                              |
+| `expected_count` | integer         | Above 20 ids | The number of distinct `contact_ids` in this call — the count the user confirmed         |
+| `confirm`        | boolean         | Above 20 ids | `true` asserts the user saw the list or exact count and explicitly confirmed the archive |
 
-Archived contacts are hidden from default lists, search, and keep-in-touch reminders. Find them with `dex_filter_contacts` and `archived_only: true`.
+Archiving more than 20 contacts in one call is rejected — nothing changes — unless it carries `confirm: true` and an `expected_count` equal to the number of distinct ids. Restoring is never gated. Archived contacts are hidden from default lists, search, and keep-in-touch reminders. Find them with `dex_filter_contacts` and `archived_only: true`.
 
 ```json
 { "contact_ids": ["c1", "c2"], "archived": true }
+```
+
+```json
+{ "contact_ids": ["c1", "...", "c25"], "confirm": true, "expected_count": 25 }
 ```
 
 ---
@@ -501,14 +508,14 @@ Get a single group by ID.
 
 ### dex_create_group
 
-Create a new contact group. Pass `parent_id` to create it as a subgroup nested under an existing group.
+Create a new contact group, optionally nested under an existing group. A group cannot be its own parent or ancestor.
 
-| Parameter     | Type          | Required | Description                                     |
-| ------------- | ------------- | -------- | ----------------------------------------------- |
-| `name`        | string        | Yes      | Group name (max 100 chars)                      |
-| `emoji`       | string        | No       | Emoji icon                                      |
-| `description` | string        | No       | Group description                               |
-| `parent_id`   | string (UUID) | No       | Existing group to nest under (creates subgroup) |
+| Parameter     | Type                 | Required | Description                                                       |
+| ------------- | -------------------- | -------- | ----------------------------------------------------------------- |
+| `name`        | string               | Yes      | Group name (max 100 chars)                                        |
+| `emoji`       | string               | No       | Emoji icon                                                        |
+| `description` | string               | No       | Group description                                                 |
+| `parent_id`   | string (UUID) / null | No       | Parent group; `null` creates it at the top level; omit if unknown |
 
 ```json
 {
@@ -522,7 +529,7 @@ Create a new contact group. Pass `parent_id` to create it as a subgroup nested u
 
 ### dex_update_group
 
-Update an existing group. To nest a group as a subgroup of another, pass `parent_id` with the parent group ID; pass `parent_id: null` to move it back to the top level. A group cannot be nested under itself or under one of its own subgroups.
+Update an existing group. Pass `parent_id` to nest it under another group, `parent_id: null` to move it to the top level, or omit `parent_id` to leave it unchanged. A group cannot be its own parent or ancestor. A top-level group reads back with no `parent_id` key.
 
 | Parameter     | Type                 | Required | Description                                    |
 | ------------- | -------------------- | -------- | ---------------------------------------------- |
@@ -683,15 +690,47 @@ Delete a note. Irreversible.
 
 ## Reminders
 
+### dex_list_upcoming_reminders_and_birthdays
+
+What is coming up for the user inside a date window, in one call — the same three lists as the Dex homepage. Use this for "whose birthday is next week?", "who should I reach out to this week?" and "what do I have coming up?" instead of stitching together `dex_list_reminders` and a contact query.
+
+| Parameter | Type                | Required | Description                                                                                                       |
+| --------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `from`    | string (YYYY-MM-DD) | No       | First day of the window, inclusive. Defaults to today in UTC — pass the user's local date when it may differ      |
+| `days`    | integer             | No       | Window length in days, counting `from` as day one (default 7, max 92). 7 = the coming week, 30 = the coming month |
+
+**Returns:** `{ window: { from, to }, birthdays: [], reminders: [], keep_in_touch: [] }`
+
+Behavior worth knowing before you answer the user from it:
+
+- **Birthdays** carry `date` (this year's occurrence), plus `birthday_year` and `turning_age` only when the year is actually known. A year-less birthday returns neither — do not infer an age.
+- **Reminders** are the OPEN ones due inside the window. Recurring reminders appear on their next occurrence. Reminders already **overdue are NOT included** — call `dex_list_reminders` with `is_overdue: true` for those.
+- **`keep_in_touch`** DOES include contacts already overdue for a touch, flagged `is_overdue`, because Dex keeps showing them as due until the touch is logged (`dex_complete_keep_in_touch`).
+- Archived contacts never appear. Birthdays the user already marked done this year are omitted.
+- Fields whose value is null are omitted from each row, so a contact with no name comes back as `contact_id` alone — use `dex_get_contact` for the full record.
+- Large windows are trimmed to fit the response budget: `reminders_truncated` / `keep_in_touch_truncated` flag a cut, and `_truncated.message` says what was left out and how to see it.
+
+```json
+{ "days": 30 }
+```
+
+---
+
 ### dex_list_reminders
 
-List reminders/tasks with optional contact filtering and pagination.
+List reminders/tasks with optional filtering by contact, completion status, overdue status and due-date range, plus sorting and pagination.
 
-| Parameter    | Type          | Required | Description                            |
-| ------------ | ------------- | -------- | -------------------------------------- |
-| `contact_id` | string (UUID) | No       | Filter reminders by associated contact |
-| `cursor`     | string        | No       | Pagination cursor                      |
-| `limit`      | number        | No       | Results per page (default 10)          |
+| Parameter     | Type                | Required | Description                                                                                    |
+| ------------- | ------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `contact_id`  | string (UUID)       | No       | Filter reminders by associated contact                                                         |
+| `is_complete` | boolean             | No       | `false` for open reminders, `true` for completed. Omit for all                                 |
+| `is_overdue`  | boolean             | No       | `true` for reminders already past due. Combine with `is_complete: false` for overdue open ones |
+| `due_after`   | string (YYYY-MM-DD) | No       | Only reminders due on or after this date, inclusive                                            |
+| `due_before`  | string (YYYY-MM-DD) | No       | Only reminders due on or before this date, inclusive                                           |
+| `sort_by`     | enum                | No       | `due_at_date` (default), `created_at`, `last_completed_at`                                     |
+| `sort_order`  | enum                | No       | `asc` (default) or `desc`                                                                      |
+| `cursor`      | string              | No       | Pagination cursor                                                                              |
+| `limit`       | number              | No       | Results per page (default 10)                                                                  |
 
 **Returns:** `{ items: Reminder[], has_more: boolean, next_cursor?: string }`
 

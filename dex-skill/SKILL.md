@@ -10,10 +10,11 @@ description: >
   (7) Search correspondence, (8) Manage calendar events, (9) Categorize, audit, or clean a network,
   (10) Turn notetaker output or transcripts into notes and follow-ups,
   (11) Prepare multiple meetings or event follow-up, (12) Research a contact on the public web,
-  (13) Authenticate via /dex-login,
+  (13) See what is coming up — upcoming birthdays, due reminders, and who to reach out to,
+  (14) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.3.0'
+  version: '2.4.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -195,7 +196,7 @@ Use `--output json` for machine-readable output, `--output text` (default) for h
 
 Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
 
-See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 52 tools to CLI commands.
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 53 tools to CLI commands.
 
 ## Core Workflows
 
@@ -254,6 +255,12 @@ set cadence or create reminder → complete/snooze when due
 - Use `text` for the reminder description — there is no separate title field
 - Recurrence options: `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly`
 - Use `dex_complete_keep_in_touch` without `snooze_days` after a real interaction; use `snooze_days` to defer without recording a touch
+
+**"What's coming up?"** — for any question about the near future ("whose birthday is next week?", "who should I reach out to this week?", "what do I have coming up?"), call `dex_list_upcoming_reminders_and_birthdays` rather than stitching several lists together. One call returns birthdays, open reminders and keep-in-touch contacts for a window (default 7 days, `days: 30` for a month).
+
+- It reports `turning_age` ONLY when the birth year is known. A birthday with no year returns neither `birthday_year` nor `turning_age` — say the date, never a guessed age
+- Its `keep_in_touch` list DOES include people already overdue (`is_overdue: true`); its `reminders` list does NOT include overdue reminders — get those from `dex_list_reminders` with `is_overdue: true`
+- On a wide window, check `reminders_truncated` / `keep_in_touch_truncated` before telling the user that is everything
 
 ### 5. Organize Contacts
 

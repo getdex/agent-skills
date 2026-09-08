@@ -137,16 +137,17 @@ Keep contact creation, organization, note logging, and reminders visible as sepa
 Use this playbook for weekly reviews, neglected-network scans, or “who should I reach out to?”
 
 1. Confirm the relationship segment, inactivity threshold, and time horizon.
-2. Use structured filters to shortlist contacts by explicit criteria. Review contacts with no recorded interaction separately because date filters exclude them.
-3. Inspect only the notes and reminders needed to understand the shortlist.
-4. Weigh relationship importance, open commitments, current opportunity context, existing cadence, and recent email/calendar evidence when requested.
-5. Return a prioritized list with:
+2. Start with `dex_list_upcoming_reminders_and_birthdays` when the question is about a window ("this week", "the next month"). One call returns the birthdays, open reminders, and keep-in-touch contacts due in it — already the answer to "who should I reach out to this week?". Widen with `days: 30`. Note it excludes ALREADY-overdue reminders; add `dex_list_reminders` with `is_overdue: true` when the review is meant to catch up rather than look ahead.
+3. Use structured filters to shortlist contacts by explicit criteria beyond cadence. Review contacts with no recorded interaction separately because date filters exclude them.
+4. Inspect only the notes and reminders needed to understand the shortlist.
+5. Weigh relationship importance, open commitments, current opportunity context, existing cadence, and recent email/calendar evidence when requested.
+6. Return a prioritized list with:
    - Why the contact is relevant now
    - Last known context
    - Open commitment or reminder
    - Suggested next action
    - Confidence or missing information
-6. Keep the review read-only unless the user asks to create reminders, change cadence, or archive contacts.
+7. Keep the review read-only unless the user asks to create reminders, change cadence, or archive contacts.
 
 Do not rank people from inactivity alone or treat a missing date as neglect. Avoid presenting speculative relationship quality as fact.
 
@@ -446,7 +447,7 @@ Several tools support batch operations for efficiency:
 - **Groups**: `dex_add_contacts_to_group` / `dex_remove_contacts_from_group` — manage group membership in bulk
 - **Custom Fields**: `dex_set_custom_field_values` — set field values on multiple contacts
 - **Create**: `dex_create_contact` — create up to 100 contacts per call
-- **Archive/Restore**: `dex_archive_contacts` — reversibly change up to 500 contacts per call
+- **Archive/Restore**: `dex_archive_contacts` — reversibly change up to 500 contacts per call; archiving more than 20 in one call requires `confirm: true` and a matching `expected_count`
 - **Delete**: `dex_delete_contacts` — remove multiple contacts
 - **Merge**: `dex_merge_contacts` — merge multiple duplicate groups simultaneously
 
