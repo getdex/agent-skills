@@ -118,12 +118,16 @@ List all contacts with cursor-based pagination. Returns lightweight summaries (i
 
 Get a single contact by ID with emails, phone numbers, saved/geocoded location, keep-in-touch cadence, tags, groups, custom fields, and optionally recent notes/timeline.
 
-| Parameter       | Type    | Required | Description                                         |
-| --------------- | ------- | -------- | --------------------------------------------------- |
-| `id`            | string  | Yes      | Contact ID                                          |
-| `include_notes` | boolean | No       | Include recent notes/timeline items (default false) |
+| Parameter          | Type     | Required | Description                                                                                                                                                                                                                 |
+| ------------------ | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | string   | Yes      | Contact ID                                                                                                                                                                                                                  |
+| `include_notes`    | boolean  | No       | Include recent notes/timeline items (default false). Ignored when `fields` is supplied — select `recent_notes` there instead                                                                                                |
+| `fields`           | string[] | No       | Allowlist of relation fields to return: `contact_emails`, `contact_phone_numbers`, `tags_contacts`, `groups_contacts`, `contacts_custom_fields`, `related_contacts`, `recent_notes`. Scalar contact fields always come back |
+| `custom_field_ids` | string[] | No       | Return only these custom-field value rows. Pair with `fields: ["contacts_custom_fields"]` for the smallest response                                                                                                         |
 
 **When to use `include_notes: true`:** user wants interaction history, meeting prep, or context about a relationship.
+
+**Use `fields` on rich contacts.** A contact with many notes, tags, and custom fields can exceed the response limit; asking only for the relations you need keeps it inside.
 
 ---
 
@@ -321,34 +325,42 @@ Read `mergedContactIds` from the result to identify the survivor; never infer it
 
 Filter contacts with the same structured filters as Dex views. Conditions combine with AND. Use this instead of keyword search when the request specifies tags, groups, profile presence, dates, archived state, or custom fields.
 
-| Parameter                                            | Type         | Description                                                            |
-| ---------------------------------------------------- | ------------ | ---------------------------------------------------------------------- |
-| `tags` / `exclude_tags`                              | string[]     | Tag IDs or exact names to include or exclude                           |
-| `tags_match`                                         | enum         | `any` (default) or `all`                                               |
-| `groups` / `exclude_groups`                          | string[]     | Group IDs or exact names to include or exclude                         |
-| `groups_match`                                       | enum         | `any` (default) or `all`                                               |
-| `name`                                               | string       | Fuzzy name match                                                       |
-| `company`                                            | string       | Fuzzy company match                                                    |
-| `job_title`                                          | string       | Fuzzy job-title match                                                  |
-| `education`                                          | string       | Fuzzy education match                                                  |
-| `description_contains`                               | string       | Contact description contains text                                      |
-| `location`                                           | string       | Fuzzy saved-location text match                                        |
-| `near`                                               | string       | Real geographic proximity around a place                               |
-| `radius_km`                                          | number       | Positive radius around `near` in kilometers (default 50)               |
-| `has_linkedin`                                       | boolean      | Require or exclude a LinkedIn profile                                  |
-| `linkedin_company`                                   | string       | LinkedIn work history contains company                                 |
-| `linkedin_education`                                 | string       | LinkedIn education history contains school                             |
-| `has_twitter` / `has_instagram`                      | boolean      | Require or exclude social handles                                      |
-| `has_email` / `has_phone`                            | boolean      | Require or exclude contact methods                                     |
-| `starred`                                            | boolean      | Filter by starred state                                                |
-| `archived_only`                                      | boolean      | `true` returns only archived contacts; default returns active contacts |
-| `last_interaction_after` / `last_interaction_before` | ISO datetime | Bound the last interaction                                             |
-| `created_after` / `created_before`                   | ISO datetime | Bound contact creation time                                            |
-| `custom_fields`                                      | object[]     | AND filters with `field_id`, `operator`, and optional `value`          |
-| `limit`                                              | integer      | Page size (default 50, max 200)                                        |
-| `cursor`                                             | string       | Cursor from the previous response                                      |
+| Parameter                                            | Type            | Description                                                             |
+| ---------------------------------------------------- | --------------- | ----------------------------------------------------------------------- |
+| `tags` / `exclude_tags`                              | string[]        | Tag IDs or exact names to include or exclude                            |
+| `tags_match`                                         | enum            | `any` (default) or `all`                                                |
+| `groups` / `exclude_groups`                          | string[]        | Group IDs or exact names to include or exclude                          |
+| `groups_match`                                       | enum            | `any` (default) or `all`                                                |
+| `name`                                               | string          | Fuzzy name match                                                        |
+| `company`                                            | string          | Fuzzy company match                                                     |
+| `job_title`                                          | string          | Fuzzy job-title match                                                   |
+| `education`                                          | string          | Fuzzy education match                                                   |
+| `description_contains`                               | string          | Contact description contains text                                       |
+| `location`                                           | string          | Fuzzy saved-location text match                                         |
+| `near`                                               | string          | Real geographic proximity around a place                                |
+| `radius_km`                                          | number          | Positive radius around `near` in kilometers (default 50)                |
+| `has_linkedin`                                       | boolean         | Require or exclude a LinkedIn profile                                   |
+| `linkedin_company`                                   | string          | LinkedIn work history contains company                                  |
+| `linkedin_education`                                 | string          | LinkedIn education history contains school                              |
+| `has_twitter` / `has_instagram`                      | boolean         | Require or exclude social handles                                       |
+| `has_email` / `has_phone`                            | boolean         | Require or exclude contact methods                                      |
+| `starred`                                            | boolean         | Filter by starred state                                                 |
+| `archived_only`                                      | boolean         | `true` returns only archived contacts; default returns active contacts  |
+| `last_interaction_after` / `last_interaction_before` | ISO datetime    | Bound the last interaction                                              |
+| `created_after` / `created_before`                   | ISO datetime    | Bound contact creation time                                             |
+| `has_frequency`                                      | boolean or enum | Keep-in-touch cadence — see below                                       |
+| `custom_fields`                                      | object[]        | AND filters with `field_id`, `operator`, and optional `value`           |
+| `include_custom_fields`                              | boolean         | Return each contact's custom-field values in the result (default false) |
+| `ids`                                                | string[]        | Fetch only these contact IDs (1–100) instead of filtering               |
+| `limit`                                              | integer         | Page size (default 50, max 200)                                         |
+| `cursor`                                             | string          | Cursor from the previous response                                       |
+| `include_archived`                                   | boolean         | Deprecated alias of `archived_only` — prefer `archived_only`            |
 
 Custom-field operators: `contains`, `eq`, `in`, `not_in`, `present`, `absent`, `gte`, and `lte`.
+
+**`has_frequency` — the only way to select an audience by its cadence.** Pass the **boolean** for presence: `true` = contacts with any cadence set (this is "everyone who has one"), `false` = contacts with none. Pass a **string** to narrow to one lane: `"never"` (explicitly marked don't-keep-in-touch) or an exact interval — `"7 days"`, `"14 days"`, `"1 mon"`, `"42 days"`, `"3 mons"`, `"6 mons"`, `"1 year"`. Note `"unset"` is a `dex_set_keep_in_touch` **write** value, not a filter: to find the contacts you would unset, pass `true`. Use this to build the `contact_ids` for a bulk `dex_set_keep_in_touch`.
+
+**`ids`** is a bulk fetch, not a filter — an absent ID may be not found, not owned, **or archived**. The backend cannot mix archived and active in one query, so if the IDs may span both, run two calls: one with the default and one with `archived_only: true`.
 
 ```json
 {
@@ -488,11 +500,16 @@ Remove tags from contacts (bulk operation).
 
 ### dex_list_groups
 
-List all contact groups. Returns all groups at once (no pagination).
+List contact groups, most recent page first.
 
-**Parameters:** None
+| Parameter | Type   | Required | Description                              |
+| --------- | ------ | -------- | ---------------------------------------- |
+| `cursor`  | string | No       | Pagination cursor from previous response |
+| `limit`   | number | No       | Results per page (default 200)           |
 
-**Returns:** `{ items: Group[] }`
+**Returns:** `{ items: Group[], has_more: boolean, next_cursor?: string, count?: number }`
+
+**This paginates.** The default of 200 covers most accounts in one call, but when `has_more` is true you must pass `next_cursor` back as `cursor` to get the rest — do not report a first page as the user's complete group list.
 
 ---
 
@@ -597,14 +614,18 @@ List contacts in a group with pagination.
 
 List notes on contact timelines with optional filtering by contact.
 
-| Parameter          | Type          | Required | Description                                          |
-| ------------------ | ------------- | -------- | ---------------------------------------------------- |
-| `contact_id`       | string (UUID) | No       | Filter by contact ID                                 |
-| `cursor`           | string        | No       | Pagination cursor                                    |
-| `limit`            | number        | No       | Results per page (default 10)                        |
-| `include_contacts` | boolean       | No       | Include contacts linked to each note; off by default |
+| Parameter          | Type                 | Required | Description                                          |
+| ------------------ | -------------------- | -------- | ---------------------------------------------------- |
+| `contact_id`       | string (UUID)        | No       | Filter by contact ID                                 |
+| `start_date`       | date or ISO datetime | No       | Only notes on or after this bound, inclusive         |
+| `end_date`         | date or ISO datetime | No       | Only notes on or before this bound, inclusive        |
+| `cursor`           | string               | No       | Pagination cursor                                    |
+| `limit`            | number               | No       | Results per page (default 10)                        |
+| `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default |
 
 **Returns:** `{ items: Note[], has_more: boolean, next_cursor?: string }`
+
+The date bounds filter on `event_time` — the timeline date the user sets freely — **not** on when the note was created. A bare `YYYY-MM-DD` covers that whole day in the account's own timezone; a full ISO datetime is used as the exact instant it names.
 
 ---
 
@@ -633,14 +654,17 @@ List available note types (Meeting, Call, Coffee, Note, etc.). Call this before 
 
 Create a new note on a contact's timeline. Supports linking to one or multiple contacts.
 
-| Parameter          | Type              | Required | Description                                                                     |
-| ------------------ | ----------------- | -------- | ------------------------------------------------------------------------------- |
-| `content`          | string            | Yes      | Note content/body                                                               |
-| `contact_id`       | string (UUID)     | No       | Associate note to a single contact                                              |
-| `contact_ids`      | string[] (UUID)   | No       | Associate note to multiple contacts at once. Can be combined with `contact_id`. |
-| `event_time`       | string (ISO 8601) | No       | When the event occurred (defaults to now)                                       |
-| `note_type_id`     | string (UUID)     | No       | Note type ID from `dex_list_note_types` (falls back to "Note")                  |
-| `include_contacts` | boolean           | No       | Include linked contacts in the returned note                                    |
+| Parameter          | Type              | Required | Description                                                                             |
+| ------------------ | ----------------- | -------- | --------------------------------------------------------------------------------------- |
+| `content`          | string            | Yes      | Note content/body                                                                       |
+| `contact_id`       | string (UUID)     | No       | Associate note to a single contact                                                      |
+| `contact_ids`      | string[] (UUID)   | No       | Associate note to multiple contacts at once. Can be combined with `contact_id`.         |
+| `event_time`       | string (ISO 8601) | No       | When the event occurred (defaults to now)                                               |
+| `note_type_id`     | string (UUID)     | No       | Note type ID from `dex_list_note_types` (falls back to "Note")                          |
+| `include_contacts` | boolean           | No       | Include linked contacts in the returned note                                            |
+| `idempotency_key`  | string            | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second note |
+
+**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate note. Generate one key per logical note, not per attempt.
 
 **Single contact:**
 
@@ -750,12 +774,15 @@ Get a single reminder by ID.
 
 Create a new reminder/task.
 
-| Parameter     | Type                | Required | Description                                                          |
-| ------------- | ------------------- | -------- | -------------------------------------------------------------------- |
-| `due_at_date` | string (YYYY-MM-DD) | Yes      | Due date                                                             |
-| `text`        | string              | No       | Reminder text (title/description — no separate title field)          |
-| `contact_id`  | string (UUID)       | No       | Associated contact                                                   |
-| `recurrence`  | enum                | No       | `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly` |
+| Parameter         | Type                | Required | Description                                                                                 |
+| ----------------- | ------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `due_at_date`     | string (YYYY-MM-DD) | Yes      | Due date                                                                                    |
+| `text`            | string              | No       | Reminder text (title/description — no separate title field)                                 |
+| `contact_id`      | string (UUID)       | No       | Associated contact                                                                          |
+| `recurrence`      | enum                | No       | `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly`                        |
+| `idempotency_key` | string              | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second reminder |
+
+**Retrying after a timeout:** pass the same `idempotency_key` you sent the first time and the server replays the original response rather than creating a duplicate. Generate one key per logical reminder, not per attempt. Without a key, a retry creates a second row.
 
 ```json
 {
@@ -1005,14 +1032,18 @@ Always confirm the event identity, account, and attendee impact.
 
 Search message metadata live across all connected Google and Microsoft mailboxes. The tool is read-only and cannot send email.
 
-| Parameter | Type         | Required | Description                                                          |
-| --------- | ------------ | -------- | -------------------------------------------------------------------- |
-| `query`   | string       | No       | Plain-text name, company, domain, or topic; omit for recent messages |
-| `after`   | ISO datetime | No       | Only messages after this time                                        |
-| `before`  | ISO datetime | No       | Only messages before this time                                       |
-| `limit`   | integer      | No       | Maximum messages (default 25, max 100)                               |
+| Parameter | Type         | Required | Description                                                                                                    |
+| --------- | ------------ | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `query`   | string       | No       | Plain-text name, company, domain, or topic; omit for recent messages                                           |
+| `folder`  | enum         | No       | `inbox` = received mail only (use for "my inbox"); `all` (default) spans the whole mailbox including sent mail |
+| `after`   | ISO datetime | No       | Only messages after this time                                                                                  |
+| `before`  | ISO datetime | No       | Only messages before this time                                                                                 |
+| `cursor`  | string       | No       | `next_cursor` from the previous page, to continue a LISTING. Rejected when `query` is set                      |
+| `limit`   | integer      | No       | Maximum messages per page (default 25, max 100)                                                                |
 
 Without date bounds, results cover roughly the last six months. Provider operators such as `from:` and `to:` are neutralized. Results include sender, participants, subject, snippet, date, and provider link, but not full bodies.
+
+**Only listings paginate.** With `query`, results are a single relevance-ranked page and passing `cursor` is rejected — narrow a search with dates or better keywords instead. When listing, prefer following `next_cursor` over widening the date range.
 
 ```json
 {
