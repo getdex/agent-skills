@@ -16,6 +16,7 @@ Best practices for being an effective personal CRM assistant with Dex. These pat
 - [Post-Meeting Follow-Up](#post-meeting-follow-up)
 - [Calendar Coordination](#calendar-coordination)
 - [Correspondence Research](#correspondence-research)
+- [Web Research](#web-research)
 - [Contact Organization Strategy](#contact-organization-strategy)
 - [Note-Taking Best Practices](#note-taking-best-practices)
 - [Follow-Up Cadences](#follow-up-cadences)
@@ -136,16 +137,17 @@ Keep contact creation, organization, note logging, and reminders visible as sepa
 Use this playbook for weekly reviews, neglected-network scans, or “who should I reach out to?”
 
 1. Confirm the relationship segment, inactivity threshold, and time horizon.
-2. Use structured filters to shortlist contacts by explicit criteria. Review contacts with no recorded interaction separately because date filters exclude them.
-3. Inspect only the notes and reminders needed to understand the shortlist.
-4. Weigh relationship importance, open commitments, current opportunity context, existing cadence, and recent email/calendar evidence when requested.
-5. Return a prioritized list with:
+2. Start with `dex_list_upcoming_reminders_and_birthdays` when the question is about a window ("this week", "the next month"). One call returns the birthdays, open reminders, and keep-in-touch contacts due in it — already the answer to "who should I reach out to this week?". Widen with `days: 30`. Note it excludes ALREADY-overdue reminders; add `dex_list_reminders` with `is_overdue: true` when the review is meant to catch up rather than look ahead.
+3. Use structured filters to shortlist contacts by explicit criteria beyond cadence. Review contacts with no recorded interaction separately because date filters exclude them.
+4. Inspect only the notes and reminders needed to understand the shortlist.
+5. Weigh relationship importance, open commitments, current opportunity context, existing cadence, and recent email/calendar evidence when requested.
+6. Return a prioritized list with:
    - Why the contact is relevant now
    - Last known context
    - Open commitment or reminder
    - Suggested next action
    - Confidence or missing information
-6. Keep the review read-only unless the user asks to create reminders, change cadence, or archive contacts.
+7. Keep the review read-only unless the user asks to create reminders, change cadence, or archive contacts.
 
 Do not rank people from inactivity alone or treat a missing date as neglect. Avoid presenting speculative relationship quality as fact.
 
@@ -196,7 +198,8 @@ When a user says "I have a meeting with X" or "Prep me for a call with X":
 3. **Check reminders** to find any pending follow-ups related to this contact
 4. **Fetch the calendar event** when the user wants live attendee, conferencing, or recurrence details
 5. **Search recent correspondence** when email context would improve the brief
-6. **Synthesize a brief** covering:
+6. **Check web research** with `dex_get_contact_research`; if nothing is stored and the user wants public background, offer `dex_research_contacts` (paid, takes a minute or more)
+7. **Synthesize a brief** covering:
    - Who they are (role, company, relationship context)
    - Last interaction (when, what was discussed)
    - Pending items (action items from last meeting, open reminders)
@@ -267,6 +270,19 @@ Use `dex_search_emails` to find live message metadata across connected Google an
 - Do not use provider operators such as `from:` or `to:`
 - Describe results as metadata and snippets, not full message bodies
 - Do not offer to send email; Dex only searches correspondence
+
+---
+
+## Web Research
+
+Dex Research produces a cited note about a contact from the public web — who they are, current focus, background, interests — plus structured findings (LinkedIn, website, email, phone):
+
+- Read first: `dex_get_contact_research` returns stored notes for up to 10 contacts at no cost
+- Run second: `dex_research_contacts` researches up to 5 contacts per call. It is paid and slow (a minute or more per contact, run in parallel), so confirm before researching more than a couple of contacts and chunk larger sets
+- Notes under 30 days old come from cache; use `force: true` only on an explicit request for a fresh run
+- Quote bullets with their `[[n]]` citations resolved into `sources`, and flag `identity_confidence` below `high`
+- Empty `linkedin` / `website` fields are filled by the run itself (`applied`); `pending` email and phone findings need the user's confirmation before `dex_update_contact`
+- `in_progress` means a run is already underway for that contact — read it back later rather than running again
 
 ---
 
@@ -347,13 +363,13 @@ Help users establish systematic follow-up patterns:
 
 ### Suggested Cadences by Relationship Type
 
-| Relationship | Cadence | `keep_in_touch` value |
-|-------------|---------|-----------------------|
-| Close professional contacts | Every 2-4 weeks | `14 days` or `1 mon` |
-| Active networking contacts | Monthly | `1 mon` |
-| Investors / Board members | Monthly | `1 mon` |
-| Dormant but valuable | Quarterly | `3 mons` |
-| Seasonal (holidays, birthdays) | Yearly | `1 year` |
+| Relationship                   | Cadence         | `keep_in_touch` value |
+| ------------------------------ | --------------- | --------------------- |
+| Close professional contacts    | Every 2-4 weeks | `14 days` or `1 mon`  |
+| Active networking contacts     | Monthly         | `1 mon`               |
+| Investors / Board members      | Monthly         | `1 mon`               |
+| Dormant but valuable           | Quarterly       | `3 mons`              |
+| Seasonal (holidays, birthdays) | Yearly          | `1 year`              |
 
 ### Setting Up Relationship Cadence
 
@@ -376,6 +392,7 @@ Use a recurring reminder when the user is tracking a specific repeated action ra
 4. Link it to the contact with `contact_id` when applicable
 
 **Example** (`dex_create_reminder`):
+
 ```json
 {
   "text": "Monthly check-in — see how the product launch went",
@@ -430,7 +447,7 @@ Several tools support batch operations for efficiency:
 - **Groups**: `dex_add_contacts_to_group` / `dex_remove_contacts_from_group` — manage group membership in bulk
 - **Custom Fields**: `dex_set_custom_field_values` — set field values on multiple contacts
 - **Create**: `dex_create_contact` — create up to 100 contacts per call
-- **Archive/Restore**: `dex_archive_contacts` — reversibly change up to 500 contacts per call
+- **Archive/Restore**: `dex_archive_contacts` — reversibly change up to 500 contacts per call; archiving more than 20 in one call requires `confirm: true` and a matching `expected_count`
 - **Delete**: `dex_delete_contacts` — remove multiple contacts
 - **Merge**: `dex_merge_contacts` — merge multiple duplicate groups simultaneously
 

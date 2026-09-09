@@ -9,22 +9,24 @@ description: >
   (5) Merge or archive contacts, (6) Review relationships or prepare meetings,
   (7) Search correspondence, (8) Manage calendar events, (9) Categorize, audit, or clean a network,
   (10) Turn notetaker output or transcripts into notes and follow-ups,
-  (11) Prepare multiple meetings or event follow-up, (12) Authenticate via /dex-login,
+  (11) Prepare multiple meetings or event follow-up, (12) Research a contact on the public web,
+  (13) See what is coming up — upcoming birthdays, due reminders, and who to reach out to,
+  (14) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: "2.1.2"
+  version: '2.4.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
-    skillKey: "dex-skill"
+    skillKey: 'dex-skill'
     requires:
-      bins: ["dex"]
+      bins: ['dex']
     install:
-      - id: "npm"
-        kind: "node"
-        package: "@getdex/cli"
-        bins: ["dex"]
-        label: "Install Dex CLI (npm)"
+      - id: 'npm'
+        kind: 'node'
+        package: '@getdex/cli'
+        bins: ['dex']
+        label: 'Install Dex CLI (npm)'
 ---
 
 # Dex Personal CRM
@@ -78,6 +80,7 @@ Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP bro
 **Do not trust `dex auth status` alone.** Status is green if any credential file exists. Verify with a real command such as `dex dex-list-tags`. A `401 unauthorized` after a "successful" login almost always means the CLI is still reading a stale token.
 
 **Where credentials actually live:**
+
 - `@getdex/cli` reads `~/.clihub/credentials.json` (`auth_type: bearer_token`, `token: dex_…`).
 - Some docs and older agents only write `~/.dex/api-key`. That file is **not** what the CLI sends on MCP calls.
 - After device-code or API-key setup, write **both** files, or the next `dex …` call will 401.
@@ -87,6 +90,7 @@ Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP bro
 Never ask the user to paste an API key into chat. Do not print, log, commit, or include it in tool arguments that will be shown back to the user. `dex auth --token <key>` puts the secret on the process argv — do not run that from an agent.
 
 **Option 1 — API Key:**
+
 1. User generates a key at [Dex Settings > Integrations](https://getdex.com/appv3/settings/api) (requires Professional plan)
 2. Ask the user to save it in their own terminal, or write both files below from a local script that never prints the value
 3. Destinations: `~/.dex/api-key` (chmod 600) **and** `~/.clihub/credentials.json` (chmod 600)
@@ -96,17 +100,20 @@ Never ask the user to paste an API key into chat. Do not print, log, commit, or 
 Drive this flow directly via HTTP — no browser needed on the machine. Always send `User-Agent: dex-cli`.
 
 1. Request a device code:
+
    ```bash
    curl -s -X POST https://mcp.getdex.com/device/code \
      -H "Content-Type: application/json" \
      -H "Accept: application/json" \
      -H "User-Agent: dex-cli"
    ```
+
    Response: `{ "device_code": "...", "user_code": "ABCD-EFGH", "verification_uri": "https://...", "expires_in": 600, "interval": 5 }`
 
 2. Show the user the `user_code` and `verification_uri`. They open the URL on any device with a browser, log in to Dex, and enter the code.
 
 3. Poll for approval every 5 seconds without logging the successful response:
+
    ```bash
    curl -s -X POST https://mcp.getdex.com/device/token \
      -H "Content-Type: application/json" \
@@ -114,6 +121,7 @@ Drive this flow directly via HTTP — no browser needed on the machine. Always s
      -H "User-Agent: dex-cli" \
      -d '{"device_code": "<device_code>"}'
    ```
+
    - HTTP 200 + `{"error": "authorization_pending"}` → keep polling (this is **not** success)
    - HTTP 429 + `{"error": "slow_down"}` → wait longer than `interval`
    - HTTP 400 + `{"error": "expired_token"}` → request a new device code
@@ -121,10 +129,12 @@ Drive this flow directly via HTTP — no browser needed on the machine. Always s
    - HTTP 200 + `api_key` → stop polling. Do not print the body.
 
 4. Save the key to **both** locations without printing it:
+
    ```bash
    install -d -m 700 ~/.dex ~/.clihub
    umask 077
    ```
+
    - `~/.dex/api-key` — raw `dex_…` bytes, mode `600`, no trailing commentary
    - `~/.clihub/credentials.json` — mode `600`, this schema (CLI source of truth):
 
@@ -186,7 +196,7 @@ Use `--output json` for machine-readable output, `--output text` (default) for h
 
 Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
 
-See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 50 tools to CLI commands.
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 53 tools to CLI commands.
 
 ## Core Workflows
 
@@ -214,6 +224,7 @@ create contact → (optionally) add to groups → apply tags → set reminder
 - Set a follow-up reminder if the user just met this person
 
 **Bulk import (CSV, spreadsheet, list):**
+
 ```
 batch create contacts → add to group → create note for all
 ```
@@ -245,14 +256,22 @@ set cadence or create reminder → complete/snooze when due
 - Recurrence options: `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly`
 - Use `dex_complete_keep_in_touch` without `snooze_days` after a real interaction; use `snooze_days` to defer without recording a touch
 
+**"What's coming up?"** — for any question about the near future ("whose birthday is next week?", "who should I reach out to this week?", "what do I have coming up?"), call `dex_list_upcoming_reminders_and_birthdays` rather than stitching several lists together. One call returns birthdays, open reminders and keep-in-touch contacts for a window (default 7 days, `days: 30` for a month).
+
+- It reports `turning_age` ONLY when the birth year is known. A birthday with no year returns neither `birthday_year` nor `turning_age` — say the date, never a guessed age
+- Its `keep_in_touch` list DOES include people already overdue (`is_overdue: true`); its `reminders` list does NOT include overdue reminders — get those from `dex_list_reminders` with `is_overdue: true`
+- On a wide window, check `reminders_truncated` / `keep_in_touch_truncated` before telling the user that is everything
+
 ### 5. Organize Contacts
 
 **Tags** — flat labels for cross-cutting categories:
+
 ```
 create tag → add to contacts (bulk)
 ```
 
 **Groups** — named collections with emoji and description:
+
 ```
 create group → add contacts (bulk)
 ```
@@ -277,8 +296,9 @@ When a user says "I have a meeting with X":
 2. Get full details with `include_notes: true`
 3. Check recent reminders for pending items
 4. Optionally search relevant email correspondence and fetch the calendar event when the user asks for live context
-5. Summarize: last interaction, key notes, pending follow-ups, shared context, attendees, and recent correspondence
-6. See [CRM Workflows](references/crm-workflows.md) for detailed meeting prep guidance
+5. Check `dex_get_contact_research` for a stored web research note; offer `dex_research_contacts` (paid, slow) when there is none and the user wants public background
+6. Summarize: last interaction, key notes, pending follow-ups, shared context, attendees, recent correspondence, and cited web findings
+7. See [CRM Workflows](references/crm-workflows.md) for detailed meeting prep guidance
 
 ### 8. Manage Calendar Events
 
@@ -290,7 +310,7 @@ When a user says "I have a meeting with X":
 - Confirm before creation when attendees may receive invitations
 - On update, `attendees` replaces the whole list; fetch the event first and include everyone who should remain
 - A recurring series ID updates the whole series; state that scope before confirmation
-- Identical create/update retries are idempotent after a timeout
+- A calendar create/update derives its idempotency key from the call's content, so an identical retry after a timeout replays the first response instead of creating a second event and re-inviting everyone. This does NOT generalise: `dex_create_contact`, `dex_create_group`, `dex_create_tag` and `dex_create_custom_field` carry a fresh key per call, so a retry of those duplicates. `dex_create_note` and `dex_create_reminder` are safe to retry only when you pass your own `idempotency_key` — reuse the SAME key and the same arguments, within the server's 24-hour window, and the original row comes back instead of a duplicate. **`dex_create_note` additionally requires an explicit `event_time` whenever `idempotency_key` is present** (it is rejected otherwise), because a defaulted "now" would differ on every attempt and defeat the replay. Set `event_time` yourself when you intend to retry.
 
 An update cannot move an event between connected accounts. To transfer one, fetch the original, confirm creating a replacement on the target account, then separately confirm deleting the original. Preserve the full attendee list and details, and warn that organizer identity, RSVP state, conferencing data, and provider notifications may change.
 
@@ -304,7 +324,16 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 - Results contain metadata, snippets, and provider links, not full bodies
 - Dex cannot send email; do not imply that this tool drafts or sends messages
 
-### 10. Archive, Delete, or Merge
+### 10. Research a Contact on the Web
+
+- `dex_get_contact_research` reads the stored note for up to 10 contacts at no cost — check it first
+- `dex_research_contacts` runs Dex Research for up to 5 contacts per call: a paid web search + page extraction + LLM summary that takes a minute or more per contact. Confirm with the user before running it on more than a couple of contacts
+- Notes under 30 days old are served from cache; pass `force: true` only when the user explicitly wants a fresh run
+- Quote findings with their citations (`[[n]]` markers resolve into `sources`) and mention `identity_confidence` when it is not `high`
+- A run fills empty `linkedin` / `website` fields itself **only from high-confidence findings**, reported in `applied`; it never overwrites an existing value. A lower-confidence `linkedin`/`website` finding comes back `pending`, exactly like every email and phone finding — check each row's `status` rather than assuming a field was filled. Anything `pending` needs the user's confirmation, then `dex_update_contact` to apply it
+- `in_progress` means another request is already researching that contact: read it back later instead of running again
+
+### 11. Archive, Delete, or Merge
 
 Prefer reversible cleanup:
 
@@ -323,7 +352,7 @@ search for potential duplicates → confirm with user → merge
 - Always confirm with the user before merging (destructive operation)
 - Can merge multiple groups in a single call
 
-### 11. Handle Outcome-Oriented Requests
+### 12. Handle Outcome-Oriented Requests
 
 For multi-contact or multi-step requests, follow this reusable contract:
 
@@ -357,10 +386,12 @@ Load [CRM Workflows](references/crm-workflows.md) for detailed playbooks when th
 - Summarize relevant context instead of repeating unnecessary personal details
 - Never share or transmit Dex data to another service without an explicit user request
 - Do not claim access to full email bodies when `dex_search_emails` returns only metadata and snippets
+- Present web research as cited public information, not as facts Dex verified; surface `identity_confidence` when the note may describe a different person
 
 ### Pagination
 
 Only responses with `has_more` and `next_cursor` use cursor pagination:
+
 - `dex_list_contacts`: default 100 per page, max 500
 - `dex_filter_contacts`: default 50 per page, max 200
 - Tag, group-contact, note, and reminder lists: default 10 per page
@@ -383,6 +414,7 @@ High-risk examples:
 - Deleting groups, tags, notes, reminders, or custom fields
 - Setting custom field values in bulk
 - Creating, updating, or deleting calendar events
+- Running paid web research (`dex_research_contacts`) on more than a couple of contacts, or with `force: true`
 
 Before a destructive call, resolve names to current IDs, read the current record when overwriting a collection, show the intended delta, and never guess ambiguous targets.
 
@@ -395,7 +427,7 @@ Responses are capped at 25,000 characters. Cursor-based tools preserve `next_cur
 ### Date Formats
 
 - All dates: ISO 8601 strings (e.g., `"2026-03-15"`, `"2026-03-15T14:30:00Z"`)
-- Birthdays: `YYYY-MM-DD`
+- Birthdays: `YYYY-MM-DD` when the year is known, or `--MM-DD` when only the month and day are. Dex stores the year in a separate column, so a birthday that reads back as `--MM-DD` means the year was never recorded — do not substitute the current year, and do not report one.
 - Reminder due dates: `YYYY-MM-DD`
 - Calendar timed events: ISO 8601 with an explicit UTC offset plus an IANA timezone
 - Calendar all-day `end_date`: exclusive
