@@ -903,13 +903,19 @@ Batch-update custom field values on contacts.
 
 Each update object:
 
-| Field             | Type                | Description                        |
-| ----------------- | ------------------- | ---------------------------------- |
-| `contact_id`      | string (UUID)       | Contact ID                         |
-| `custom_field_id` | string (UUID)       | Custom field ID                    |
-| `text_value`      | string              | Value for text/autocomplete fields |
-| `date_value`      | string (YYYY-MM-DD) | Value for date fields              |
-| `array_value`     | string[]            | Value for multi-select fields      |
+| Field             | Type                | Description                                                                                                               |
+| ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `contact_id`      | string (UUID)       | Contact ID                                                                                                                |
+| `custom_field_id` | string (UUID)       | Custom field ID                                                                                                           |
+| `text_value`      | string              | Value for text/autocomplete fields                                                                                        |
+| `date_value`      | string (YYYY-MM-DD) | Value for date fields                                                                                                     |
+| `array_value`     | string[]            | Value for multi-select fields                                                                                             |
+| `mode`            | enum                | `replace` (default) overwrites the stored value; `prepend` / `append` keep it and add the new text in front of / after it |
+| `separator`       | string              | Joiner for `prepend` / `append` (defaults to a newline)                                                                   |
+
+**`prepend` / `append` are atomic — do NOT read the current value first.** The server preserves the existing text and adds yours, so a read-modify-write is both unnecessary and racy. Array values prepend/append as a de-duplicated list; date fields support `replace` only.
+
+Note this is why `dex_set_custom_field_values` is **not** idempotent: repeating an `append` call adds the text again.
 
 ```json
 {
@@ -1078,7 +1084,7 @@ Run Dex Research on one or more contacts: a web search, page extraction, and an 
 
 A contact researched within the last 30 days returns its cached note at no cost. Each entry in `items` carries an `outcome`; `error` and `in_progress` rows are listed before `ok` rows so a truncated response drops notes (still stored) rather than notices:
 
-- `ok` — `research` holds the note: `one_line_summary` and `sections` (`current_focus`, `background`, `interests`) with `[[n]]` citation markers into `sources`, `identity_confidence`, and `fields` (linkedin / website / email / phone findings with `confidence`, `evidence`, and a `status`). `research.status` is `success` or `no_data_found` (with a `reason`). `applied` reports which **empty** `linkedin` / `website` fields the run filled in — **only high-confidence findings are auto-applied**, and existing values are never overwritten. Read each finding's own `status` rather than assuming: `auto_applied` (the run wrote it), `already_present` (the contact held that exact value), or `pending` (not on the contact). A lower-confidence `linkedin`/`website` finding is `pending` just like every email and phone finding. Anything `pending` needs the user's confirmation before you apply it with `dex_update_contact`.
+- `ok` — `research` holds the note: `one_line_summary` and `sections` (`current_focus`, `background`, `interests`) with `[[n]]` citation markers into `sources`, `identity_confidence`, and `fields` (linkedin / website / email / phone findings with `confidence`, `evidence`, and a `status`). `research.status` is `success` or `no_data_found` (with a `reason`). `applied` reports which **empty** `linkedin` / `website` fields the run filled in — **only high-confidence findings are auto-applied**, and existing values are never overwritten. Read each finding's own `status` rather than assuming: `auto_applied` (the run wrote it), `applied` (a human accepted it in the Dex UI), `already_present` (the contact held that exact value), or `pending` (not on the contact). A lower-confidence `linkedin`/`website` finding is `pending` just like every email and phone finding. Anything `pending` needs the user's confirmation before you apply it with `dex_update_contact`.
 - `in_progress` — another request already holds that contact's run lock. Read it back later with `dex_get_contact_research`; do not run again.
 - `error` — see `error`. A request that ended before the run finished may still complete server-side: check `dex_get_contact_research` in a minute or two and re-run only if nothing is stored.
 
