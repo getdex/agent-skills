@@ -14,7 +14,7 @@ description: >
   (14) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.4.0'
+  version: '2.4.2'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -304,21 +304,24 @@ When a user says "I have a meeting with X":
 
 - Use `dex_list_calendar_events` for a time window or plain-text event search across all connected Google/Microsoft accounts
 - Reuse an event's returned `email` as `account_email` for get/update/delete
-- For create/update/delete, also pass `account_provider` when the same address is connected to both providers; `dex_get_calendar_event` currently accepts only `account_email`
+- For get/create/update/delete, also pass `account_provider` when the same address is connected to both providers
 - For timed events, provide both `start_datetime` and `end_datetime` with explicit offsets; include an IANA `timezone`
 - For all-day events, provide `start_date`; `end_date` is exclusive and defaults to the next day
 - Confirm before creation when attendees may receive invitations
 - On update, `attendees` replaces the whole list; fetch the event first and include everyone who should remain
 - A recurring series ID updates the whole series; state that scope before confirmation
-- A calendar create/update derives its idempotency key from the call's content, so an identical retry after a timeout replays the first response instead of creating a second event and re-inviting everyone. This does NOT generalise: `dex_create_contact`, `dex_create_group`, `dex_create_tag` and `dex_create_custom_field` carry a fresh key per call, so a retry of those duplicates. `dex_create_note` and `dex_create_reminder` are safe to retry only when you pass your own `idempotency_key` — reuse the SAME key and the same arguments, within the server's 24-hour window, and the original row comes back instead of a duplicate. **`dex_create_note` additionally requires an explicit `event_time` whenever `idempotency_key` is present** (it is rejected otherwise), because a defaulted "now" would differ on every attempt and defeat the replay. Set `event_time` yourself when you intend to retry.
+- For calendar create/update, generate `idempotency_key` before the first attempt and reuse it with identical arguments only to retry that operation within 24 hours. Every new edit or intended new event needs a new key. Without one, update executes again; create deduplicates identical content for 24 hours, so use a new key when recreating a deleted event or intentionally creating another identical event. This does NOT generalise: `dex_create_contact`, `dex_create_group`, `dex_create_tag` and `dex_create_custom_field` carry a fresh key per call, so a retry of those duplicates. `dex_create_note` and `dex_create_reminder` are safe to retry only when you pass your own `idempotency_key` — reuse the SAME key and the same arguments, within the server's 24-hour window, and the original row comes back instead of a duplicate. **`dex_create_note` additionally requires an explicit `event_time` whenever `idempotency_key` is present** (it is rejected otherwise), because a defaulted "now" would differ on every attempt and defeat the replay. Set `event_time` yourself when you intend to retry.
 
 An update cannot move an event between connected accounts. To transfer one, fetch the original, confirm creating a replacement on the target account, then separately confirm deleting the original. Preserve the full attendee list and details, and warn that organizer identity, RSVP state, conferencing data, and provider notifications may change.
+
+If a calendar list returns `warnings`, describe the results as incomplete; do not infer availability from the missing accounts. If all calendars fail, report the error rather than saying there are no meetings.
 
 If a calendar write fails for missing provider scope, direct the user to **Settings → Sync & Integrations → Grant calendar access** for that account.
 
 ### 9. Search Correspondence
 
 - Use `dex_search_emails` for live, read-only search across all connected Google/Microsoft mailboxes
+- To list recent mail, omit `query`; use `folder: 'inbox'` for received mail. Follow `next_cursor` while keeping the same folder and date bounds
 - Use plain keywords such as a name, company, domain, or topic; provider operators such as `from:` and `to:` are neutralized
 - Set `after` and `before` for precise date ranges; otherwise the search covers roughly the last six months
 - Results contain metadata, snippets, and provider links, not full bodies
@@ -329,6 +332,7 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 - `dex_get_contact_research` reads the stored note for up to 10 contacts at no cost — check it first
 - `dex_research_contacts` runs Dex Research for up to 5 contacts per call: a paid web search + page extraction + LLM summary that takes a minute or more per contact. Confirm with the user before running it on more than a couple of contacts
 - Notes under 30 days old are served from cache; pass `force: true` only when the user explicitly wants a fresh run
+- A fresh run replaces the stored research note and its finding statuses. Preserving existing contact fields does not preserve the previous research note; explain that replacement before forcing a rerun
 - Quote findings with their citations (`[[n]]` markers resolve into `sources`) and mention `identity_confidence` when it is not `high`
 - A run fills empty `linkedin` / `website` fields itself **only from high-confidence findings**, reported in `applied`; it never overwrites an existing value. A lower-confidence `linkedin`/`website` finding comes back `pending`, exactly like every email and phone finding — check each row's `status` rather than assuming a field was filled. Anything `pending` needs the user's confirmation, then `dex_update_contact` to apply it
 - `in_progress` means another request is already researching that contact: read it back later instead of running again
@@ -396,10 +400,12 @@ Only responses with `has_more` and `next_cursor` use cursor pagination:
 - `dex_filter_contacts`: default 50 per page, max 200
 - Tag, group-contact, note, and reminder lists: default 10 per page
 - Check `has_more` in response
-- Pass `next_cursor` from previous response to get next page
+- Pass `next_cursor` as `cursor` while preserving the original filters, sort order, and optional includes
 - Iterate until `has_more: false` to get all results
 
-`dex_search_contacts`, `dex_list_calendar_events`, and `dex_search_emails` return a bounded single batch, not a cursor. Narrow the query or date range when necessary.
+`dex_search_emails` listings (without `query`) also paginate, with default 25 and maximum 100 messages per page. Searches with `query` are a single page and reject `cursor`.
+
+`dex_search_contacts` and `dex_list_calendar_events` return a bounded single batch, not a cursor. Narrow the query or date range when necessary.
 
 ### Destructive Operations
 
