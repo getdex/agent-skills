@@ -935,7 +935,7 @@ Note this is why `dex_set_custom_field_values` is **not** idempotent: repeating 
 
 ## Calendar
 
-Calendar tools operate live against all connected Google and Microsoft accounts. Events returned by list/get include the account `email` and `provider`. Reuse `email` as `account_email`; create/update/delete also accept `account_provider` to disambiguate one address connected under both providers. `dex_get_calendar_event` currently accepts only `account_email`.
+Calendar tools operate live against all connected Google and Microsoft accounts. Events returned by list/get include the account `email` and `provider`. Reuse `email` as `account_email`; get/create/update/delete also accept `account_provider` to disambiguate one address connected under both providers.
 
 ### dex_list_calendar_events
 
@@ -948,7 +948,7 @@ List or search events across all connected calendars. Defaults to now through th
 | `query`   | string       | No       | Plain-text match across title, description, location, and attendees                                                                                                                                                                                                                                                                                 |
 | `limit`   | integer      | No       | Max events PER connected calendar, not a total — with 2 accounts a limit of 3 can return 6 (default 50, max 250). Results are merged in chronological order. Providers truncate newest-first, so a small limit returns the LATEST events in the range, not the next ones — narrow `start`/`end` instead of relying on `limit` to mean "the next N". |
 
-**Returns:** `{ items: CalendarEvent[], count: number, _truncated?: ... }` as a single batch without a cursor.
+**Returns:** `{ items: CalendarEvent[], count: number, warnings?: string[], _truncated?: ... }` as a single batch without a cursor. `warnings` means some calendars failed and the results are incomplete, even if `items` is empty. If every calendar fails, the tool returns an error; do not interpret it as an empty schedule.
 
 ```json
 {
@@ -964,12 +964,13 @@ List or search events across all connected calendars. Defaults to now through th
 
 Get one live provider event, including attendees, conferencing links, and recurrence flags.
 
-| Parameter       | Type   | Required | Description                                                          |
-| --------------- | ------ | -------- | -------------------------------------------------------------------- |
-| `event_id`      | string | Yes      | Provider event ID                                                    |
-| `account_email` | string | No       | Connected account email; use the event's returned `email` when known |
+| Parameter          | Type   | Required | Description                                                          |
+| ------------------ | ------ | -------- | -------------------------------------------------------------------- |
+| `event_id`         | string | Yes      | Provider event ID                                                    |
+| `account_email`    | string | No       | Connected account email; use the event's returned `email` when known |
+| `account_provider` | enum   | No       | `GOOGLE` or `OFFICE365` to select the event's provider               |
 
-A successful lookup may refresh calendar-account metadata on linked Dex notes; it does not change provider event content. When the same address is connected under both providers, this tool cannot accept `account_provider`; start from `dex_list_calendar_events` and do not guess if the event cannot be resolved unambiguously.
+A successful lookup may refresh calendar-account metadata on linked Dex notes; it does not change provider event content. When the same address is connected under both providers, pass `account_provider` from the event returned by `dex_list_calendar_events`.
 
 ---
 
@@ -977,21 +978,22 @@ A successful lookup may refresh calendar-account metadata on linked Dex notes; i
 
 Create a timed or all-day event on a connected calendar. Confirm before the call when attendees may receive invitations.
 
-| Parameter          | Type         | Required    | Description                                                                         |
-| ------------------ | ------------ | ----------- | ----------------------------------------------------------------------------------- |
-| `summary`          | string       | Yes         | Event title                                                                         |
-| `description`      | string       | No          | Event description or notes                                                          |
-| `location`         | string       | No          | Event location                                                                      |
-| `attendees`        | email[]      | No          | Attendees to invite (max 100)                                                       |
-| `start_datetime`   | ISO datetime | Conditional | Timed-event start with explicit offset; requires `end_datetime`                     |
-| `end_datetime`     | ISO datetime | Conditional | Timed-event end with explicit offset; requires `start_datetime`                     |
-| `timezone`         | string       | No          | IANA timezone such as `America/Mexico_City`                                         |
-| `start_date`       | date         | Conditional | All-day start (`YYYY-MM-DD`)                                                        |
-| `end_date`         | date         | No          | Exclusive all-day end; defaults to the day after `start_date`                       |
-| `account_email`    | string       | No          | Target connected account; otherwise Dex selects a writable primary/fallback account |
-| `account_provider` | enum         | No          | `GOOGLE` or `OFFICE365` when the same email exists under both                       |
+| Parameter          | Type         | Required    | Description                                                                                                                           |
+| ------------------ | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `summary`          | string       | Yes         | Event title                                                                                                                           |
+| `description`      | string       | No          | Event description or notes                                                                                                            |
+| `location`         | string       | No          | Event location                                                                                                                        |
+| `attendees`        | email[]      | No          | Attendees to invite (max 100)                                                                                                         |
+| `start_datetime`   | ISO datetime | Conditional | Timed-event start with explicit offset; requires `end_datetime`                                                                       |
+| `end_datetime`     | ISO datetime | Conditional | Timed-event end with explicit offset; requires `start_datetime`                                                                       |
+| `timezone`         | string       | No          | IANA timezone such as `America/Mexico_City`                                                                                           |
+| `start_date`       | date         | Conditional | All-day start (`YYYY-MM-DD`)                                                                                                          |
+| `end_date`         | date         | No          | Exclusive all-day end; defaults to the day after `start_date`                                                                         |
+| `account_email`    | string       | No          | Target connected account; otherwise Dex selects a writable primary/fallback account                                                   |
+| `account_provider` | enum         | No          | `GOOGLE` or `OFFICE365` when the same email exists under both                                                                         |
+| `idempotency_key`  | string       | No          | Caller operation key (1–200 letters, digits, underscores, colons, dots, or hyphens); reuse only for identical retries within 24 hours |
 
-Provide either the timed pair or `start_date`, never both forms.
+Provide either the timed pair or `start_date`, never both forms. Supply a caller key from the first attempt to safely retry an operation. Use a new key for a new event, including an intended recreation after deletion; without a key, identical creations reuse the original response for 24 hours.
 
 ```json
 {
@@ -1009,18 +1011,21 @@ Provide either the timed pair or `start_date`, never both forms.
 
 Update one provider event. At least one changed field is required.
 
-| Parameter                         | Type         | Required    | Description                                                   |
-| --------------------------------- | ------------ | ----------- | ------------------------------------------------------------- |
-| `event_id`                        | string       | Yes         | Provider event ID                                             |
-| `summary`                         | string       | No          | Replacement title                                             |
-| `description`                     | string       | No          | Replacement description                                       |
-| `location`                        | string       | No          | Replacement location                                          |
-| `attendees`                       | email[]      | No          | Replacement attendee list; include everyone who should remain |
-| `start_datetime` / `end_datetime` | ISO datetime | Conditional | Replacement timed range; provide both                         |
-| `timezone`                        | string       | No          | IANA timezone                                                 |
-| `start_date` / `end_date`         | date         | Conditional | Replacement all-day range; `end_date` is exclusive            |
-| `account_email`                   | string       | No          | Account that owns the event                                   |
-| `account_provider`                | enum         | No          | `GOOGLE` or `OFFICE365` when needed to disambiguate           |
+| Parameter                         | Type         | Required    | Description                                                                                                                           |
+| --------------------------------- | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `event_id`                        | string       | Yes         | Provider event ID                                                                                                                     |
+| `summary`                         | string       | No          | Replacement title                                                                                                                     |
+| `description`                     | string       | No          | Replacement description                                                                                                               |
+| `location`                        | string       | No          | Replacement location                                                                                                                  |
+| `attendees`                       | email[]      | No          | Replacement attendee list; include everyone who should remain                                                                         |
+| `start_datetime` / `end_datetime` | ISO datetime | Conditional | Replacement timed range; provide both                                                                                                 |
+| `timezone`                        | string       | No          | IANA timezone                                                                                                                         |
+| `start_date` / `end_date`         | date         | Conditional | Replacement all-day range; `end_date` is exclusive                                                                                    |
+| `account_email`                   | string       | No          | Account that owns the event                                                                                                           |
+| `account_provider`                | enum         | No          | `GOOGLE` or `OFFICE365` when needed to disambiguate                                                                                   |
+| `idempotency_key`                 | string       | No          | Caller operation key (1–200 letters, digits, underscores, colons, dots, or hyphens); reuse only for identical retries within 24 hours |
+
+For retries, supply `idempotency_key` from the first attempt and reuse it with identical arguments within 24 hours. Use a fresh key for every new edit, including changing back to a previous value. Without a key each update executes again.
 
 Fetch the current event before changing attendees. Passing a recurring series ID updates the whole series. Confirm the replacement list, schedule, and recurring scope before calling.
 
@@ -1075,6 +1080,8 @@ Without date bounds, results cover roughly the last six months. Provider operato
 
 ### dex_research_contacts
 
+A fresh run, including one after cache expiry or with `force: true`, replaces the stored research note and its finding statuses. Only populated contact fields such as LinkedIn and website are protected from automatic overwriting.
+
 Run Dex Research on one or more contacts: a web search, page extraction, and an LLM summary produce a cited research note per contact plus structured findings. This is a **paid** action that takes a minute or more per contact (contacts run in parallel, so the call lasts as long as the slowest run). Confirm with the user before researching a large set, and chunk bigger sets into several calls.
 
 | Parameter     | Type     | Required | Description                                                                          |
@@ -1122,5 +1129,5 @@ Common error patterns:
 - **Not found**: Contact/tag/group/note/reminder ID doesn't exist. Ask user to search again.
 - **Invalid date**: Date string couldn't be parsed. Ensure ISO 8601 format.
 - **Calendar write scope missing**: Ask the user to grant calendar access for that account in Settings → Sync & Integrations.
-- **Ambiguous calendar account**: Reuse the event's `email`; for create/update/delete, also use its `provider`. Get-by-ID has no provider selector, so do not guess when one email exists under both providers.
+- **Ambiguous calendar account**: Reuse the event's `email` and `provider` for get/update/delete; do not guess when one email exists under both providers.
 - **Truncated response**: Response exceeded 25,000 chars. Use a smaller page for cursor tools or narrow the query/date range for single-batch tools.
