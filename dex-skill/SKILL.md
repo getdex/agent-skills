@@ -14,7 +14,7 @@ description: >
   (14) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.4.2'
+  version: '2.5.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -41,9 +41,19 @@ Check which access method is available, in this order:
 2. **CLI installed?** Check if `dex` command exists (run `which dex` or `dex auth status`). If authenticated, use CLI commands.
 3. **Neither?** Guide the user through setup.
 
+**If you can run shell commands but cannot open a browser** — you are a sandboxed-compute agent (Grok Bot, OpenClaw, and similar hosted agents that execute on their own machine rather than the user's). Don't expect the host's own MCP connector sign-in to work: its form takes only a URL and static headers, so it never starts an OAuth flow and reports `authentication_required` with no link to hand the user. Start with **Path B** (install the CLI) followed by the **device code flow** below — that terminates in the user signing in on their own device.
+
+Once the device flow has issued a `dex_` key, you have both options. Keep using the CLI, or — if the user prefers MCP tools over CLI commands — add `https://mcp.getdex.com/mcp` as a connector with that key as an `Authorization: Bearer dex_…` header. Tool calls work either way.
+
+> **Before you take the connector path, read this — the rule is here, not only in [Authentication](#authentication).** A `dex_` key carries **no scopes**: it acts as the user across their whole account and it does not expire, unlike the scoped one-hour OAuth token. Never print it, echo it into chat, or place it in a tool argument the user can see. Nothing in this paragraph relaxes that. If wiring the connector would require you to surface the key anywhere at all, **stop** and ask the user to mint their own key at Settings → Integrations and paste it into the host's connector field themselves.
+
+The host may still label the connector "unauthenticated" because it tracks OAuth state it never established. That badge on its own is cosmetic — but a `401` or `403` on a tool call is a real failure (revoked key, or an account without a Professional subscription), not a display quirk. Judge by whether tool calls actually succeed, and surface a rejection instead of retrying it.
+
 ### First-Time Setup
 
-**Path A — Platform supports MCP (Claude Desktop, Cursor, VS Code, Gemini CLI, etc.):**
+**Path A — Platform supports MCP _with OAuth_ (Claude Desktop, Cursor, VS Code, Gemini CLI, etc.):**
+
+This path requires a client that implements the MCP OAuth spec — it must be able to follow a `WWW-Authenticate` challenge and open a browser or hand the user an authorize URL. A host that only accepts a server URL plus a static `Authorization` header (Grok Bot, the xAI API remote-MCP tool) cannot complete it; use Path B instead.
 
 If the user already has the Dex MCP server configured, or their platform can add MCP servers:
 
@@ -75,7 +85,9 @@ Direct the user to follow the setup guide at **https://getdex.com/docs/ai/mcp-se
 
 ### Authentication
 
-Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP browser OAuth when available, then device code for an interactive CLI session, and API keys for CI or when the user explicitly chooses one.
+Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP browser OAuth when your host supports it, then device code for an interactive CLI session or any sandboxed-compute agent, and API keys for CI or when the user explicitly chooses one.
+
+On Grok Bot, OpenClaw, and similar hosted agents, **device code is the first choice, not the fallback** — there is no browser on your machine to open, but the user has one on theirs.
 
 **Do not trust `dex auth status` alone.** Status is green if any credential file exists. Verify with a real command such as `dex dex-list-tags`. A `401 unauthorized` after a "successful" login almost always means the CLI is still reading a stale token.
 
