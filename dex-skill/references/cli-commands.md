@@ -1,6 +1,6 @@
 # Dex CLI Command Reference
 
-All 53 MCP tools map to CLI subcommands. CLIHub generates subcommand names by replacing `_` with `-` in the MCP tool name.
+All 57 MCP tools map to CLI subcommands. CLIHub generates subcommand names by replacing `_` with `-` in the MCP tool name.
 
 > **The published CLI can lag the MCP server.** The binary is generated from
 > the server and republished separately, so a tool that exists over MCP may
@@ -25,6 +25,8 @@ All 53 MCP tools map to CLI subcommands. CLIHub generates subcommand names by re
 | `dex_archive_contacts`                      | `dex dex-archive-contacts --contact-ids "id1,id2" --archived true` (over 20 ids: `--confirm true --expected-count N`) |
 | `dex_delete_contacts`                       | `dex dex-delete-contacts --contact-ids "id1,id2"`                                                                     |
 | `dex_merge_contacts`                        | `dex dex-merge-contacts --contact-id-groups '[["id1","id2"]]'`                                                        |
+| `dex_get_priority_tiers`                    | `dex dex-get-priority-tiers` (add `--contact-ids "c1,c2"` for their current tier)                                     |
+| `dex_set_contact_priority`                  | `dex dex-set-contact-priority --contact-ids "c1,c2" --tier "Inner circle"`                                            |
 | `dex_filter_contacts`                       | `dex dex-filter-contacts --company "..." --tags "Investor"`                                                           |
 | `dex_add_related_contacts`                  | `dex dex-add-related-contacts --contact-id "..." --contact-ids "c1,c2"`                                               |
 | `dex_remove_related_contacts`               | `dex dex-remove-related-contacts --contact-id "..." --contact-ids "c1"`                                               |

@@ -11,10 +11,11 @@ description: >
   (10) Turn notetaker output or transcripts into notes and follow-ups,
   (11) Prepare multiple meetings or event follow-up, (12) Research a contact on the public web,
   (13) See what is coming up — upcoming birthdays, due reminders, and who to reach out to,
-  (14) Authenticate via /dex-login,
+  (14) Rank relationships into the user's priority tiers,
+  (15) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.5.0'
+  version: '2.6.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -183,6 +184,7 @@ Contact
 ├── Custom Fields (user-defined: input, dropdown, datepicker)
 ├── Notes/Timeline (interaction log: meetings, calls, coffees)
 ├── Reminders (follow-up tasks with optional recurrence)
+├── Priority tier (one of the user's own named tiers, or none)
 └── Starred / Archived status
 ```
 
@@ -208,7 +210,7 @@ Use `--output json` for machine-readable output, `--output text` (default) for h
 
 Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
 
-See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 53 tools to CLI commands.
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 57 tools to CLI commands.
 
 ## Core Workflows
 
@@ -368,7 +370,21 @@ search for potential duplicates → confirm with user → merge
 - Always confirm with the user before merging (destructive operation)
 - Can merge multiple groups in a single call
 
-### 12. Handle Outcome-Oriented Requests
+### 12. Set Relationship Priority
+
+Every contact can sit in one of the user's priority tiers — the same field the Priority Map edits. Users rename tiers, so never assume the defaults (1 Top, 2 High, 3 Medium, 4 Low, 5 None):
+
+```
+dex_get_priority_tiers → dex_filter_contacts (priority_tier) → propose → confirm → dex_set_contact_priority
+```
+
+- Call `dex_get_priority_tiers` first and talk in the user's own tier labels
+- Find who is already in a tier with `dex_filter_contacts` `priority_tier` (a tier number, a list of them, or `true`/`false`)
+- `dex_set_contact_priority` takes the tier label or `tier_number` and up to 500 `contact_ids`; `null` clears the priority, which is not the same as the "None" tier
+- It overwrites each contact's current tier: show which contacts go to which tier, and call out anyone moving out of a tier they are already in, before writing
+- Personal Dex only — refused on a Dex for Teams workspace connection
+
+### 13. Handle Outcome-Oriented Requests
 
 For multi-contact or multi-step requests, follow this reusable contract:
 
@@ -392,6 +408,7 @@ Load [CRM Workflows](references/crm-workflows.md) for detailed playbooks when th
 - Review relationship health or plan outreach
 - Prepare a day or week of meetings
 - Build a target contact list from several criteria
+- Propose and assign contacts to priority tiers
 
 ## Important Patterns
 
