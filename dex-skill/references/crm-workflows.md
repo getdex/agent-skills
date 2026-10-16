@@ -12,6 +12,7 @@ Best practices for being an effective personal CRM assistant with Dex. These pat
 - [Run a Relationship Review](#run-a-relationship-review)
 - [Prepare Multiple Meetings](#prepare-multiple-meetings)
 - [Build a Target Contact List](#build-a-target-contact-list)
+- [Assign Priority Tiers](#assign-priority-tiers)
 - [Meeting Prep Workflow](#meeting-prep-workflow)
 - [Post-Meeting Follow-Up](#post-meeting-follow-up)
 - [Calendar Coordination](#calendar-coordination)
@@ -186,6 +187,21 @@ Use this playbook for requests such as “find investors near New York,” “bu
 6. Create a group, apply a tag, set a field, or add reminders only after showing the exact members and changes.
 
 Do not claim a filter is exhaustive when it used a bounded single-batch search. Avoid inferring investment focus, expertise, or intent without explicit evidence.
+
+---
+
+## Assign Priority Tiers
+
+Use this playbook for requests such as “who should be in my top tier?”, “prioritize my network,” or “propose contacts for each priority tier.”
+
+1. **Read the ladder** — Call `dex_get_priority_tiers` and use the user's labels everywhere. Never invent tier names or fall back to the defaults when the user has renamed them.
+2. **Inspect current state** — Use `dex_filter_contacts` with `priority_tier` to list who is already in each tier, and `priority_tier: false` for contacts with no priority.
+3. **Gather evidence (read-only)** — Recency and frequency of contact, who starts conversations, upcoming meetings, notes, tags, groups, and keep-in-touch cadence. When email or calendar is connected, use only the metadata needed — not message bodies. Skip obviously automated senders, vendors, and newsletters.
+4. **Propose per tier** — For each tier, a table of name, current tier, proposed tier, one line of evidence with a date or count, and confidence. Keep the top tier small, list contacts whose tier would CHANGE in their own section, put uncertain contacts in a “needs your call” list, and end with totals per tier.
+5. **Wait for approval** — Apply nothing until the user confirms; accept edits like “approve the top tier, move Sarah down one.”
+6. **Apply and verify** — One `dex_set_contact_priority` call per tier with the approved `contact_ids` (≤500 per call). Report `requested` / `updated` and any `not_updated_ids`.
+
+Don't overwrite a tier the user set deliberately without calling it out. Treat “None” as a real tier the user chose, distinct from clearing (`null`).
 
 ---
 

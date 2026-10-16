@@ -11,10 +11,11 @@ description: >
   (10) Turn notetaker output or transcripts into notes and follow-ups,
   (11) Prepare multiple meetings or event follow-up, (12) Research a contact on the public web,
   (13) See what is coming up — upcoming birthdays, due reminders, and who to reach out to,
-  (14) Authenticate via /dex-login,
+  (14) Rank relationships into the user's priority tiers,
+  (15) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.5.0'
+  version: '2.6.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -183,6 +184,7 @@ Contact
 ├── Custom Fields (user-defined: input, dropdown, datepicker)
 ├── Notes/Timeline (interaction log: meetings, calls, coffees)
 ├── Reminders (follow-up tasks with optional recurrence)
+├── Priority tier (one of the user's own named tiers, or none)
 └── Starred / Archived status
 ```
 
@@ -208,7 +210,7 @@ Use `--output json` for machine-readable output, `--output text` (default) for h
 
 Run `dex --help` for all commands, or `dex <command> --help` for command-specific help.
 
-See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 53 tools to CLI commands.
+See **[CLI Command Reference](references/cli-commands.md)** for the full mapping table of all 57 tools to CLI commands.
 
 ## Core Workflows
 
@@ -271,8 +273,8 @@ set cadence or create reminder → complete/snooze when due
 **"What's coming up?"** — for any question about the near future ("whose birthday is next week?", "who should I reach out to this week?", "what do I have coming up?"), call `dex_list_upcoming_reminders_and_birthdays` rather than stitching several lists together. One call returns birthdays, open reminders and keep-in-touch contacts for a window (default 7 days, `days: 30` for a month).
 
 - It reports `turning_age` ONLY when the birth year is known. A birthday with no year returns neither `birthday_year` nor `turning_age` — say the date, never a guessed age
-- Its `keep_in_touch` list DOES include people already overdue (`is_overdue: true`); its `reminders` list does NOT include overdue reminders — get those from `dex_list_reminders` with `is_overdue: true`
-- On a wide window, check `reminders_truncated` / `keep_in_touch_truncated` before telling the user that is everything
+- Its `keep_in_touch` list DOES include people already overdue (`is_overdue: true`); its `reminders` list leaves out reminders due before `from` — get overdue ones from `dex_list_reminders` with `is_overdue: true, is_complete: false`. Due dates and overdue are judged in UTC
+- On a wide window, check `reminders_truncated` / `keep_in_touch_truncated` before telling the user that is everything. Keep-in-touch rows accumulate to the end of the window, so page an overflow with `dex_filter_contacts` (`has_frequency: true`) rather than a later `from`
 
 ### 5. Organize Contacts
 
@@ -368,7 +370,21 @@ search for potential duplicates → confirm with user → merge
 - Always confirm with the user before merging (destructive operation)
 - Can merge multiple groups in a single call
 
-### 12. Handle Outcome-Oriented Requests
+### 12. Set Relationship Priority
+
+Every contact can sit in one of the user's priority tiers — the same field the Priority Map edits. Users rename tiers, so never assume the defaults (1 Top, 2 High, 3 Medium, 4 Low, 5 None):
+
+```
+dex_get_priority_tiers → dex_filter_contacts (priority_tier) → propose → confirm → dex_set_contact_priority
+```
+
+- Call `dex_get_priority_tiers` first and talk in the user's own tier labels
+- Find who is already in a tier with `dex_filter_contacts` `priority_tier` (a tier number, a list of them, or `true`/`false`)
+- `dex_set_contact_priority` takes the tier label or `tier_number` and up to 500 `contact_ids`; `null` clears the priority, which is not the same as the "None" tier
+- It overwrites each contact's current tier: show which contacts go to which tier, and call out anyone moving out of a tier they are already in, before writing
+- Personal Dex only — refused on a Dex for Teams workspace connection
+
+### 13. Handle Outcome-Oriented Requests
 
 For multi-contact or multi-step requests, follow this reusable contract:
 
@@ -392,6 +408,7 @@ Load [CRM Workflows](references/crm-workflows.md) for detailed playbooks when th
 - Review relationship health or plan outreach
 - Prepare a day or week of meetings
 - Build a target contact list from several criteria
+- Propose and assign contacts to priority tiers
 
 ## Important Patterns
 
@@ -440,7 +457,7 @@ For contact cleanup, do not define “stale” from inactivity alone. Review ope
 
 ### Response Truncation
 
-Responses are capped at 25,000 characters. Cursor-based tools preserve `next_cursor` and `has_more`; continue with a smaller page. For single-batch search, calendar, and email tools, reduce `limit` or narrow the query/date range.
+Responses are capped at 25,000 characters. Cursor-based tools preserve `next_cursor` and `has_more`; continue with a smaller page. For single-batch search, calendar, and email tools, reduce `limit` or narrow the query/date range. A `_truncated` notice on a write tool (create, update, add) means the write already happened: read the omitted rows back, e.g. `dex_filter_contacts` with `created_after`, and never repeat the call.
 
 ### Date Formats
 
