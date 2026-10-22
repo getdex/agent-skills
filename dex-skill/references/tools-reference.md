@@ -101,6 +101,8 @@ When using `near`, do not repeat the place in `query`; the two fields combine wi
 
 `near` and `radius_km` are Personal Dex only: a Dex for Teams workspace connection refuses them with `workspace_context_unsupported`.
 
+A `near` the geocoder can't place returns no items and a `warning`. Tell the user the place wasn't found, not that nobody is there, then retry with a city or region name (such as `Seattle, WA`) and a larger `radius_km`, or match the saved location text with `dex_filter_contacts`' `location`.
+
 ---
 
 ### dex_list_contacts
@@ -444,6 +446,8 @@ Filter contacts with the same structured filters as Dex views. Conditions combin
 | `include_archived`                                   | boolean                       | Deprecated alias of `archived_only` — prefer `archived_only`                                                                                                                                                                                         |
 
 Custom-field operators: `contains`, `eq`, `in`, `not_in`, `present`, `absent`, `gte`, and `lte`.
+
+A `near` the geocoder can't place returns no items and a `warning`: the place wasn't found, which says nothing about who is there. Retry with a city or region name and a larger `radius_km`, or use `location` for a text match.
 
 **`has_frequency` — the only way to select an audience by its cadence.** Pass the **boolean** for presence: `true` = contacts with any cadence set (this is "everyone who has one"), `false` = contacts with none. Pass a **string** to narrow to one lane: `"never"` (explicitly marked don't-keep-in-touch) or an exact interval — `"7 days"`, `"14 days"`, `"1 mon"`, `"42 days"`, `"3 mons"`, `"6 mons"`, `"1 year"`. Note `"unset"` is a `dex_set_keep_in_touch` **write** value, not a filter: to find the contacts you would unset, pass `true`. Use this to build the `contact_ids` for a bulk `dex_set_keep_in_touch`.
 
