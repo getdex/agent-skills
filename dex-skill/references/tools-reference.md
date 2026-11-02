@@ -65,12 +65,30 @@ Complete parameter documentation for all Dex MCP tools.
   - [dex_delete_calendar_event](#dex_delete_calendar_event)
 - [Email](#email)
   - [dex_search_emails](#dex_search_emails)
+- [Attention Items](#attention-items)
+  - [dex_list_attention_items](#dex_list_attention_items)
+  - [dex_get_attention_item_thread](#dex_get_attention_item_thread)
+  - [dex_draft_attention_item_reply](#dex_draft_attention_item_reply)
+  - [dex_send_attention_item_reply](#dex_send_attention_item_reply)
+  - [dex_resolve_attention_item](#dex_resolve_attention_item)
 - [Research](#research)
   - [dex_research_contacts](#dex_research_contacts)
   - [dex_get_contact_research](#dex_get_contact_research)
 - [Workspaces](#workspaces)
   - [dex_list_workspaces](#dex_list_workspaces)
   - [dex_list_workspace_members](#dex_list_workspace_members)
+- [Companies](#companies)
+  - [dex_list_companies](#dex_list_companies)
+  - [dex_get_company](#dex_get_company)
+  - [dex_create_company](#dex_create_company)
+  - [dex_update_company](#dex_update_company)
+  - [dex_set_company_owner](#dex_set_company_owner)
+  - [dex_add_tags_to_companies](#dex_add_tags_to_companies)
+  - [dex_remove_tags_from_companies](#dex_remove_tags_from_companies)
+  - [dex_merge_companies](#dex_merge_companies)
+  - [dex_list_company_contacts](#dex_list_company_contacts)
+  - [dex_get_company_activity](#dex_get_company_activity)
+  - [dex_set_contact_company](#dex_set_contact_company)
 
 ---
 
@@ -80,12 +98,12 @@ Complete parameter documentation for all Dex MCP tools.
 
 Search contacts by name, email, or any keyword. Returns up to `limit` results. Use an empty query to list contacts sorted by most recently interacted.
 
-| Parameter   | Type   | Required | Description                                                                                     |
-| ----------- | ------ | -------- | ----------------------------------------------------------------------------------------------- |
-| `query`     | string | Yes      | Keyword query. Use empty string when `near` is the only filter or to browse by last interaction |
-| `near`      | string | No       | Place for real geographic proximity search, such as `Bay Area` or `Sydney`. Personal Dex only   |
-| `radius_km` | number | No       | Positive radius around `near` in kilometers (default 50). Personal Dex only                     |
-| `limit`     | number | No       | Max results (default 50, max 200)                                                               |
+| Parameter   | Type    | Required | Description                                                                                     |
+| ----------- | ------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `query`     | string  | Yes      | Keyword query. Use empty string when `near` is the only filter or to browse by last interaction |
+| `near`      | string  | No       | Place for real geographic proximity search, such as `Bay Area` or `Sydney`. Personal Dex only   |
+| `radius_km` | number  | No       | Positive radius around `near` in kilometers (default 50). Personal Dex only                     |
+| `limit`     | integer | No       | Max results, 1-200 (default 50)                                                                 |
 
 **Returns:** `{ items: Contact[], count: number }`
 
@@ -109,10 +127,10 @@ A `near` the geocoder can't place returns no items and a `warning`. Tell the use
 
 List all contacts with cursor-based pagination. Returns lightweight summaries (id, name, company, job title). Use `dex_get_contact` for full details. Use `dex_search_contacts` for keyword search.
 
-| Parameter | Type   | Required | Description                              |
-| --------- | ------ | -------- | ---------------------------------------- |
-| `cursor`  | string | No       | Pagination cursor from previous response |
-| `limit`   | number | No       | Results per page (default 100, max 500)  |
+| Parameter | Type    | Required | Description                              |
+| --------- | ------- | -------- | ---------------------------------------- |
+| `cursor`  | string  | No       | Pagination cursor from previous response |
+| `limit`   | integer | No       | Results per page, 1-500 (default 100)    |
 
 **Returns:** `{ items: ContactSummary[], has_more: boolean, next_cursor?: string, count?: number }`
 
@@ -127,12 +145,12 @@ List all contacts with cursor-based pagination. Returns lightweight summaries (i
 
 Get a single contact by ID with emails, phone numbers, saved/geocoded location, keep-in-touch cadence, tags, groups, custom fields, and optionally recent notes/timeline.
 
-| Parameter          | Type     | Required | Description                                                                                                                                                                                                                 |
-| ------------------ | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`               | string   | Yes      | Contact ID                                                                                                                                                                                                                  |
-| `include_notes`    | boolean  | No       | Include recent notes/timeline items (default false). Ignored when `fields` is supplied — select `recent_notes` there instead                                                                                                |
-| `fields`           | string[] | No       | Allowlist of relation fields to return: `contact_emails`, `contact_phone_numbers`, `tags_contacts`, `groups_contacts`, `contacts_custom_fields`, `related_contacts`, `recent_notes`. Scalar contact fields always come back |
-| `custom_field_ids` | string[] | No       | Return only these custom-field value rows. Pair with `fields: ["contacts_custom_fields"]` for the smallest response                                                                                                         |
+| Parameter          | Type          | Required | Description                                                                                                                                                                                                                 |
+| ------------------ | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | string (UUID) | Yes      | Contact ID                                                                                                                                                                                                                  |
+| `include_notes`    | boolean       | No       | Include recent notes/timeline items (default false). Ignored when `fields` is supplied — select `recent_notes` there instead                                                                                                |
+| `fields`           | string[]      | No       | Allowlist of relation fields to return: `contact_emails`, `contact_phone_numbers`, `tags_contacts`, `groups_contacts`, `contacts_custom_fields`, `related_contacts`, `recent_notes`. Scalar contact fields always come back |
+| `custom_field_ids` | string[]      | No       | Return only these custom-field value rows. Pair with `fields: ["contacts_custom_fields"]` for the smallest response                                                                                                         |
 
 **When to use `include_notes: true`:** user wants interaction history, meeting prep, or context about a relationship.
 
@@ -232,7 +250,7 @@ Partial update — only provided fields are changed. For emails and phone number
 | Parameter         | Type          | Required | Description                                                                                                                                                                                                                                                                                                         |
 | ----------------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `idempotency_key` | string        | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior.                                                                     |
-| `id`              | string        | Yes      | Contact ID to update                                                                                                                                                                                                                                                                                                |
+| `id`              | string (UUID) | Yes      | Contact ID to update                                                                                                                                                                                                                                                                                                |
 | `first_name`      | string        | No       | First name                                                                                                                                                                                                                                                                                                          |
 | `last_name`       | string        | No       | Last name                                                                                                                                                                                                                                                                                                           |
 | `company`         | string / null | No       | Company name                                                                                                                                                                                                                                                                                                        |
@@ -272,7 +290,7 @@ Complete or snooze a contact's keep-in-touch cadence.
 | Parameter         | Type            | Required | Description                                                                                                                                                                                                                                     |
 | ----------------- | --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `idempotency_key` | string          | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
-| `contact_id`      | string          | Yes      | Contact ID                                                                                                                                                                                                                                      |
+| `contact_id`      | string (UUID)   | Yes      | Contact ID                                                                                                                                                                                                                                      |
 | `snooze_days`     | integer or null | No       | Positive number of days to defer without recording a touch; omit to mark the cadence complete                                                                                                                                                   |
 | `kind`            | string          | No       | Dex for Teams workspace only: `"team"` (shared with the workspace, needs write access) or `"my"` (your own, private). Optional when the contact has one cadence, required when it has both. Refused on Personal Dex                             |
 
@@ -340,10 +358,10 @@ Archiving more than 20 contacts in one call is rejected — nothing changes — 
 
 Delete one or more contacts. Irreversible — confirm with the user and prefer `dex_archive_contacts` when recovery may matter.
 
-| Parameter         | Type     | Required | Description                                                                                                                                                                                                                                     |
-| ----------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idempotency_key` | string   | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
-| `contact_ids`     | string[] | Yes      | Contact IDs to delete (min 1)                                                                                                                                                                                                                   |
+| Parameter         | Type            | Required | Description                                                                                                                                                                                                                                     |
+| ----------------- | --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key` | string          | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
+| `contact_ids`     | string[] (UUID) | Yes      | Contact IDs to delete (min 1)                                                                                                                                                                                                                   |
 
 **Refused on a Dex for Teams workspace connection.** Delete workspace contacts in the Dex app, or archive one contact at a time with `dex_update_contact` and `is_archived: true`.
 
@@ -353,16 +371,16 @@ Delete one or more contacts. Irreversible — confirm with the user and prefer `
 
 Merge duplicate contacts. Dex automatically keeps the oldest record in each group, regardless of input order, combines data onto it, and deletes the others.
 
-| Parameter           | Type       | Required | Description                                                                                                                                                                                                                                     |
-| ------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idempotency_key`   | string     | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
-| `contact_id_groups` | string[][] | Yes      | Groups of IDs to merge (each group min 2 IDs)                                                                                                                                                                                                   |
+| Parameter           | Type              | Required | Description                                                                                                                                                                                                                                     |
+| ------------------- | ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key`   | string            | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
+| `contact_id_groups` | string[][] (UUID) | Yes      | Groups of IDs to merge (each group min 2 IDs)                                                                                                                                                                                                   |
 
 ```json
 {
   "contact_id_groups": [
-    ["contact-id-1a", "contact-id-1b", "contact-id-1c"],
-    ["contact-id-2a", "contact-id-2b"]
+    ["contact-uuid-1a", "contact-uuid-1b", "contact-uuid-1c"],
+    ["contact-uuid-2a", "contact-uuid-2b"]
   ]
 }
 ```
@@ -375,7 +393,7 @@ Read `mergedContactIds` from the result to identify the survivor; never infer it
 
 ### dex_get_priority_tiers
 
-Read the user's relationship-priority tiers and, optionally, the current priority of specific contacts. Tiers are numbered from 1 (highest); the defaults are 1 Top, 2 High, 3 Medium, 4 Low, 5 None, but users can rename them, so call this first and use the user's own labels. Personal Dex only.
+Read the user's relationship-priority tiers and, optionally, the current priority of specific contacts. Tiers are numbered from 1 (highest); the defaults are 1 Top, 2 High, 3 Medium, 4 Low, 5 None, but users can rename them, so call this first and use the user's own labels. Personal Dex only: a workspace connection refuses it with `workspace_context_unsupported`.
 
 | Parameter     | Type            | Required | Description                                                            |
 | ------------- | --------------- | -------- | ---------------------------------------------------------------------- |
@@ -391,7 +409,7 @@ Returns `tiers` (`tier_number` + `label`) and, when `contact_ids` is passed, `co
 
 ### dex_set_contact_priority
 
-Set or clear the relationship priority of up to 500 contacts in one call — the same field the Priority Map edits. Personal Dex only.
+Set or clear the relationship priority of up to 500 contacts in one call — the same field the Priority Map edits. Personal Dex only: a workspace connection refuses it with `workspace_context_unsupported`.
 
 | Parameter         | Type                    | Required | Description                                                                                                                                                                                                                                     |
 | ----------------- | ----------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -445,7 +463,7 @@ Filter contacts with the same structured filters as Dex views. Conditions combin
 | `cursor`                                             | string                        | Cursor from the previous response                                                                                                                                                                                                                    |
 | `include_archived`                                   | boolean                       | Deprecated alias of `archived_only` — prefer `archived_only`                                                                                                                                                                                         |
 
-Custom-field operators: `contains`, `eq`, `in`, `not_in`, `present`, `absent`, `gte`, and `lte`.
+Custom-field operators: `contains`, `eq`, `in`, `not_in`, `present`, `absent`, `gte`, and `lte`. `contains`/`eq` take a string, `in`/`not_in` a string array, `present`/`absent` no value, and `gte`/`lte` an ISO datetime on a date field. On a Dex for Teams workspace: a Number field takes `eq`/`gte`/`lte` with a number, a Yes/No field `eq` with `true` or `false`, and a Contact field `in`/`not_in` with contact ids.
 
 A `near` the geocoder can't place returns no items and a `warning`: the place wasn't found, which says nothing about who is there. Retry with a city or region name and a larger `radius_km`, or use `location` for a text match.
 
@@ -515,10 +533,10 @@ Relations are symmetric, so removing A↔B clears the link from both sides. The 
 
 List all tags with optional pagination.
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
-| `cursor`  | string | No       | Pagination cursor             |
-| `limit`   | number | No       | Results per page (default 10) |
+| Parameter | Type    | Required | Description                          |
+| --------- | ------- | -------- | ------------------------------------ |
+| `cursor`  | string  | No       | Pagination cursor                    |
+| `limit`   | integer | No       | Results per page, 1-500 (default 10) |
 
 **Returns:** `{ items: Tag[], has_more: boolean, next_cursor?: string }`
 
@@ -610,10 +628,10 @@ Remove tags from contacts (bulk operation).
 
 List contact groups, most recent page first.
 
-| Parameter | Type   | Required | Description                              |
-| --------- | ------ | -------- | ---------------------------------------- |
-| `cursor`  | string | No       | Pagination cursor from previous response |
-| `limit`   | number | No       | Results per page (default 200)           |
+| Parameter | Type    | Required | Description                              |
+| --------- | ------- | -------- | ---------------------------------------- |
+| `cursor`  | string  | No       | Pagination cursor from previous response |
+| `limit`   | integer | No       | Results per page, 1-1500 (default 200)   |
 
 **Returns:** `{ items: Group[], has_more: boolean, next_cursor?: string, count?: number }`
 
@@ -715,11 +733,11 @@ Remove contacts from a group (bulk operation).
 
 List contacts in a group with pagination.
 
-| Parameter  | Type          | Required | Description                   |
-| ---------- | ------------- | -------- | ----------------------------- |
-| `group_id` | string (UUID) | Yes      | Group ID                      |
-| `cursor`   | string        | No       | Pagination cursor             |
-| `limit`    | number        | No       | Results per page (default 10) |
+| Parameter  | Type          | Required | Description                           |
+| ---------- | ------------- | -------- | ------------------------------------- |
+| `group_id` | string (UUID) | Yes      | Group ID                              |
+| `cursor`   | string        | No       | Pagination cursor                     |
+| `limit`    | integer       | No       | Results per page, 1-1500 (default 10) |
 
 **Returns:** `{ items: Contact[], has_more: boolean, next_cursor?: string }`, each a lean contact row (see `dex_create_contact`).
 
@@ -739,7 +757,7 @@ List notes on contact timelines with optional filtering by contact.
 | `start_date`       | date or ISO datetime | No       | Only notes on or after this bound, inclusive         |
 | `end_date`         | date or ISO datetime | No       | Only notes on or before this bound, inclusive        |
 | `cursor`           | string               | No       | Pagination cursor                                    |
-| `limit`            | number               | No       | Results per page (default 10)                        |
+| `limit`            | integer              | No       | Results per page, 1-100 (default 10)                 |
 | `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default |
 
 **Returns:** `{ items: Note[], has_more: boolean, next_cursor?: string }`
@@ -775,7 +793,7 @@ Create a new note on a contact's timeline. Supports linking to one or multiple c
 
 | Parameter          | Type                    | Required | Description                                                                                                                                                                                                                        |
 | ------------------ | ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `content`          | string                  | Yes      | Note content/body                                                                                                                                                                                                                  |
+| `content`          | string                  | Yes      | Note body as HTML (`<p>`, `<ul><li>`, `<strong>`, ...); plain text or Markdown is converted                                                                                                                                        |
 | `contact_id`       | string (UUID)           | No       | Associate note to a single contact                                                                                                                                                                                                 |
 | `contact_ids`      | string[] (UUID)         | No       | Associate note to multiple contacts at once. Can be combined with `contact_id`.                                                                                                                                                    |
 | `event_time`       | string (ISO 8601)       | No       | When the event occurred (defaults to now)                                                                                                                                                                                          |
@@ -818,7 +836,7 @@ Update an existing note's `content` or `event_time`. Only those two can change: 
 | Parameter          | Type              | Required | Description                                                     |
 | ------------------ | ----------------- | -------- | --------------------------------------------------------------- |
 | `note_id`          | string (UUID)     | Yes      | Note ID                                                         |
-| `content`          | string            | No       | New content                                                     |
+| `content`          | string            | No       | New note body as HTML; plain text or Markdown is converted      |
 | `event_time`       | string (ISO 8601) | No       | New event time                                                  |
 | `include_contacts` | boolean           | No       | Include linked contacts, with their names, in the returned note |
 
@@ -872,16 +890,18 @@ List reminders/tasks with optional filtering by contact, completion status, over
 | Parameter     | Type                | Required | Description                                                                                                                                                                                                                                                                               |
 | ------------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `contact_id`  | string (UUID)       | No       | Filter reminders by associated contact                                                                                                                                                                                                                                                    |
+| `tag_id`      | string (UUID)       | No       | Filter by tag (`dex_list_tags`). Workspace connections only: a Personal call is refused, and a tag from another workspace matches nothing                                                                                                                                                 |
+| `company_id`  | string (UUID)       | No       | Workspace connections only: reminders linked to a contact with a current role at this company (`dex_list_companies`). Refused on Personal                                                                                                                                                 |
 | `is_complete` | boolean             | No       | `false` for open reminders, `true` for completed. Omit for all                                                                                                                                                                                                                            |
 | `is_overdue`  | boolean             | No       | Filters on the due date alone, against today's date in UTC: `true` = due before today (UTC), `false` = due today (UTC) or later. Completed reminders match on their date too, although a completed row reads `is_overdue: false`; combine with `is_complete: false` for overdue open ones |
 | `due_after`   | string (YYYY-MM-DD) | No       | Only reminders due on or after this date, inclusive                                                                                                                                                                                                                                       |
 | `due_before`  | string (YYYY-MM-DD) | No       | Only reminders due on or before this date, inclusive                                                                                                                                                                                                                                      |
 | `assignee_id` | string              | No       | Workspace connections only, a read filter: `me` (assigned to you), `none` (unassigned) or a `member_id` from `dex_list_workspace_members` (that member's). Refused on Personal                                                                                                            |
-| `query`       | string              | No       | Case-insensitive substring match on the reminder text. Omit or leave blank for no text filter                                                                                                                                                                                             |
+| `query`       | string              | No       | Case-insensitive substring match on the reminder text. Omit or leave blank for no text filter. Up to 500 characters                                                                                                                                                                       |
 | `sort_by`     | enum                | No       | `due_at_date` (default), `created_at`, `last_completed_at`                                                                                                                                                                                                                                |
 | `sort_order`  | enum                | No       | `asc` (default) or `desc`                                                                                                                                                                                                                                                                 |
 | `cursor`      | string              | No       | Pagination cursor                                                                                                                                                                                                                                                                         |
-| `limit`       | number              | No       | Results per page (default 10)                                                                                                                                                                                                                                                             |
+| `limit`       | integer             | No       | Results per page, 1-100 (default 10)                                                                                                                                                                                                                                                      |
 
 **Returns:** `{ items: Reminder[], has_more: boolean, next_cursor?: string }`
 
@@ -889,6 +909,7 @@ List reminders/tasks with optional filtering by contact, completion status, over
 
 - `reminders_contacts` lists the linked contacts as `[{ contact_id, contacts: { id, full_name } }]`; it is empty when the reminder is linked to none. `dex_get_contact` has each contact's full record.
 - `is_overdue` is `true` when the reminder is still open and its due date is before today's date in UTC; it is always `false` once the reminder is complete.
+- `tags` (workspace connections only) lists the reminder's tags as `[{ id, name }]`; it is absent on Personal Dex.
 - `assignee_id` (workspace connections) is the member it is assigned to. Nulls are omitted from rows, so a missing `assignee_id` means unassigned; it is always absent on Personal Dex.
 - `recurrence` is absent on a one-off reminder. Workspace reminders never recur.
 
@@ -913,6 +934,7 @@ Create a new reminder/task.
 | `due_at_date`     | string (YYYY-MM-DD) | Yes      | Due date                                                                                                                                                                      |
 | `text`            | string              | No       | Reminder text (title/description — no separate title field)                                                                                                                   |
 | `contact_id`      | string (UUID)       | No       | Associated contact                                                                                                                                                            |
+| `tag_ids`         | string[] (UUID)     | No       | Up to 100 tags to put on the reminder. Workspace only: tags must be this workspace's tags (`dex_list_tags`); a Personal call is refused                                       |
 | `recurrence`      | enum                | No       | `weekly`, `biweekly`, `monthly`, `quarterly`, `biannually`, `yearly`. Personal Dex only: workspace reminders don't recur, and a Dex for Teams workspace connection refuses it |
 | `assignee_id`     | string or null      | No       | A `member_id` to assign. `null` = unassigned; omit to assign yourself. Workspace connections only                                                                             |
 | `idempotency_key` | string              | No       | Replay guard — reusing a key returns the FIRST result instead of creating a second reminder                                                                                   |
@@ -937,14 +959,15 @@ Unlike `dex_create_note`, this tool has no extra required field when a key is su
 
 Update an existing reminder.
 
-| Parameter     | Type                | Required | Description                                                                              |
-| ------------- | ------------------- | -------- | ---------------------------------------------------------------------------------------- |
-| `reminder_id` | string (UUID)       | Yes      | Reminder ID                                                                              |
-| `text`        | string              | No       | New text                                                                                 |
-| `due_at_date` | string (YYYY-MM-DD) | No       | New due date                                                                             |
-| `recurrence`  | enum                | No       | New recurrence. Personal Dex only: a Dex for Teams workspace connection refuses it       |
-| `is_complete` | boolean             | No       | Mark complete/incomplete                                                                 |
-| `assignee_id` | string or null      | No       | A `member_id` to reassign to; `null` unassigns; omit to keep. Workspace connections only |
+| Parameter     | Type                | Required | Description                                                                                                                                                                       |
+| ------------- | ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reminder_id` | string (UUID)       | Yes      | Reminder ID                                                                                                                                                                       |
+| `text`        | string              | No       | New text                                                                                                                                                                          |
+| `due_at_date` | string (YYYY-MM-DD) | No       | New due date                                                                                                                                                                      |
+| `recurrence`  | enum                | No       | New recurrence. Personal Dex only: a Dex for Teams workspace connection refuses it                                                                                                |
+| `is_complete` | boolean             | No       | Mark complete/incomplete                                                                                                                                                          |
+| `tag_ids`     | string[] (UUID)     | No       | Replaces the reminder's tags with exactly these; `[]` clears them; omit to keep. Workspace only: tags must be this workspace's tags (`dex_list_tags`); a Personal call is refused |
+| `assignee_id` | string or null      | No       | A `member_id` to reassign to; `null` unassigns; omit to keep. Workspace connections only                                                                                          |
 
 ```json
 { "reminder_id": "r1", "is_complete": true }
@@ -970,11 +993,13 @@ Delete a reminder. Irreversible.
 
 ### dex_list_custom_fields
 
-List all custom field definitions.
+List custom field definitions: contact fields by default.
 
-**Parameters:** None
+| Parameter     | Type | Required | Description                                                             |
+| ------------- | ---- | -------- | ----------------------------------------------------------------------- |
+| `entity_type` | enum | No       | `contact` (default), `company` (Dex for Teams workspaces only) or `all` |
 
-**Returns:** Array of custom field definitions with `id`, `name`, `field_type`, and `categories`.
+**Returns:** Array of custom field definitions with `id`, `name`, `field_type`, `entity_type`, and `categories`.
 
 ---
 
@@ -982,12 +1007,13 @@ List all custom field definitions.
 
 Create a new custom field definition. In a Dex for Teams workspace, only owners and admins can create field definitions.
 
-| Parameter         | Type     | Required | Description                                                                                                                                                                                                                                     |
-| ----------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idempotency_key` | string   | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
-| `name`            | string   | Yes      | Field name (max 100 chars)                                                                                                                                                                                                                      |
-| `field_type`      | enum     | Yes      | `input` (free text), `autocomplete` (dropdown), `datepicker`                                                                                                                                                                                    |
-| `categories`      | string[] | No       | Dropdown options (only for `autocomplete` type)                                                                                                                                                                                                 |
+| Parameter         | Type     | Required | Description                                                                                                                                                                                                                                                                                                           |
+| ----------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key` | string   | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior.                                                                       |
+| `name`            | string   | Yes      | Field name (max 100 chars)                                                                                                                                                                                                                                                                                            |
+| `field_type`      | enum     | Yes      | `input` (free text), `autocomplete` (dropdown), `datepicker`. Dex for Teams workspaces only: `multiselect` (several options), `number`, `boolean` (yes/no) and `contact` (links to other workspace contacts), `company` (links to workspace companies) and `teammate` (a workspace member); Personal Dex refuses them |
+| `entity_type`     | enum     | No       | What the field is on: `contact` (default) or `company` (Dex for Teams workspaces only). Cannot be changed later                                                                                                                                                                                                       |
+| `categories`      | string[] | No       | Options for the `autocomplete` and `multiselect` types (ignored for the others)                                                                                                                                                                                                                                       |
 
 ```json
 {
@@ -1014,8 +1040,7 @@ Update an existing custom field definition. In a Dex for Teams workspace, only o
 | `idempotency_key` | string        | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
 | `custom_field_id` | string (UUID) | Yes      | Custom field ID                                                                                                                                                                                                                                 |
 | `name`            | string        | No       | New name                                                                                                                                                                                                                                        |
-| `field_type`      | enum          | No       | New type: `input`, `autocomplete`, `datepicker`                                                                                                                                                                                                 |
-| `categories`      | string[]      | No       | New dropdown options                                                                                                                                                                                                                            |
+| `categories`      | string[]      | No       | New options for an `autocomplete` or `multiselect` field                                                                                                                                                                                        |
 
 ---
 
@@ -1032,7 +1057,7 @@ Delete a custom field definition. Irreversible. **Refused on a Dex for Teams wor
 
 ### dex_set_custom_field_values
 
-Batch-update custom field values on contacts.
+Batch-update custom field values on contacts and, in a Dex for Teams workspace, on companies (send `company_id` instead of `contact_id`, with a company field). A field only takes values on the entity it was created for.
 
 | Parameter         | Type     | Required | Description                                                                                                                                                                                                                                     |
 | ----------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1041,15 +1066,21 @@ Batch-update custom field values on contacts.
 
 Each update object:
 
-| Field             | Type                | Description                                                                                                               |
-| ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `contact_id`      | string (UUID)       | Contact ID                                                                                                                |
-| `custom_field_id` | string (UUID)       | Custom field ID                                                                                                           |
-| `text_value`      | string              | Value for text/autocomplete fields                                                                                        |
-| `date_value`      | string (YYYY-MM-DD) | Value for date fields                                                                                                     |
-| `array_value`     | string[]            | Value for multi-select fields                                                                                             |
-| `mode`            | enum                | `replace` (default) overwrites the stored value; `prepend` / `append` keep it and add the new text in front of / after it |
-| `separator`       | string              | Joiner for `prepend` / `append` (defaults to a newline)                                                                   |
+| Field                | Type                | Description                                                                                                                                                  |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contact_id`         | string (UUID)       | Contact ID (send exactly one of `contact_id` / `company_id`)                                                                                                 |
+| `company_id`         | string (UUID)       | Company ID, for company fields (workspace only)                                                                                                              |
+| `custom_field_id`    | string (UUID)       | Custom field ID                                                                                                                                              |
+| `text_value`         | string              | Value for text/autocomplete fields                                                                                                                           |
+| `date_value`         | string (YYYY-MM-DD) | Value for date fields                                                                                                                                        |
+| `array_value`        | string[]            | Value for multi-select fields                                                                                                                                |
+| `member_user_id`     | string or null      | Teammate fields (workspace only): the member user id from `dex_list_workspace_members`, or `null` to clear                                                   |
+| `number_value`       | number or null      | Number fields (workspace only), or `null` to clear                                                                                                           |
+| `boolean_value`      | boolean or null     | Yes/No fields (workspace only), or `null` to clear                                                                                                           |
+| `linked_contact_ids` | string[] (UUIDs)    | Contact fields (workspace only): the workspace contacts to link, replacing the current set (at most 50, never the contact itself); `[]` clears. Replace only |
+| `linked_company_ids` | string[] (UUIDs)    | Company fields (workspace only): the workspace companies to link, replacing the current set (a company never links to itself); `[]` clears. Replace only     |
+| `mode`               | enum                | `replace` (default) overwrites the stored value; `prepend` / `append` keep it and add the new text in front of / after it                                    |
+| `separator`          | string              | Joiner for `prepend` / `append` (defaults to a newline)                                                                                                      |
 
 **`prepend` / `append` are atomic — do NOT read the current value first.** The server preserves the existing text and adds yours, so a read-modify-write is both unnecessary and racy. Array values prepend/append as a de-duplicated list; date fields support `replace` only.
 
@@ -1075,20 +1106,28 @@ Note this is why `dex_set_custom_field_values` is **not** idempotent: repeating 
 
 Calendar tools operate live against all connected Google and Microsoft accounts. Events returned by list/get include the account `email` and `provider`. Reuse `email` as `account_email`; get/create/update/delete also accept `account_provider` to disambiguate one address connected under both providers.
 
-All five calendar tools are **Personal Dex connection only**: a Dex for Teams workspace connection refuses them with `workspace_context_unsupported`.
+On a Dex for Teams workspace connection, `dex_list_calendar_events` reads only what members share with the workspace (see below). The other four calendar tools stay **Personal Dex connection only**: a workspace connection refuses them with `workspace_context_unsupported`.
 
 ### dex_list_calendar_events
 
-List or search events across all connected calendars. Defaults to now through the next seven days. Personal Dex connection only (refused on a Dex for Teams workspace connection).
+List or search events across all connected calendars. Defaults to now through the next seven days. On a Dex for Teams workspace connection it reads only what members share with the workspace.
 
-| Parameter | Type         | Required | Description                                                                                                                                                                                                                                                                                                                                         |
-| --------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start`   | ISO datetime | No       | Range start with offset; defaults to now                                                                                                                                                                                                                                                                                                            |
-| `end`     | ISO datetime | No       | Range end with offset; defaults to seven days after `start`                                                                                                                                                                                                                                                                                         |
-| `query`   | string       | No       | Plain-text match across title, description, location, and attendees                                                                                                                                                                                                                                                                                 |
-| `limit`   | integer      | No       | Max events PER connected calendar, not a total — with 2 accounts a limit of 3 can return 6 (default 50, max 250). Results are merged in chronological order. Providers truncate newest-first, so a small limit returns the LATEST events in the range, not the next ones — narrow `start`/`end` instead of relying on `limit` to mean "the next N". |
+| Parameter    | Type         | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------ | ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`      | ISO datetime | No       | Range start with offset; defaults to now. On a workspace connection, send it in the user's own offset: the server places all-day events by it                                                                                                                                                                                                                                                                                                                                                                       |
+| `end`        | ISO datetime | No       | Range end with offset; defaults to seven days after `start`. On a workspace connection it defaults to one day after `start`, and the range spans at most seven days                                                                                                                                                                                                                                                                                                                                                 |
+| `query`      | string       | No       | Plain-text match across title, description, location, and attendees. Personal Dex only                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `limit`      | integer      | No       | When set, return up to this many events across all connected calendars (max 250): the earliest for an upcoming window (starting within the last hour or in the future), or the newest for a past window. Results are always in chronological order. When omitted, each provider returns up to 25 events. Direct REST requests without `dateRange.start` retain the latest events per account, merged in chronological order. On a workspace connection it applies only with `contact_id`, as a total of at most 100 |
+| `contact_id` | UUID         | No       | Workspace connection only: list the meetings with this workspace contact on every calendar shared with the workspace at subject and metadata or full level, newest first, instead of a time range. Refused on Personal Dex, where `query` with a wide range does this                                                                                                                                                                                                                                               |
 
-**Returns:** `{ items: CalendarEvent[], count: number, warnings?: string[], _truncated?: ... }` as a single batch without a cursor. `warnings` means some calendars failed and the results are incomplete, even if `items` is empty. If every calendar fails, the tool returns an error; do not interpret it as an empty schedule.
+**Returns:** `{ items: CalendarEvent[], count: number, order?: "newest_first", warnings?: string[], _truncated?: ... }` as a single batch without a cursor. `warnings` means some calendars failed or a provider reported an incomplete read, even if `items` is empty. If every calendar fails, the tool returns an error; do not interpret it as an empty schedule.
+
+**On a Dex for Teams workspace connection** the tool has two modes:
+
+- **A range** (one day from `start` by default, at most seven days; `query` is refused, and `limit` applies only with `contact_id`): every event on the user's own calendars that they share with this workspace, in full, at any share level, plus teammates' meetings with workspace contacts. Both arrive in one `items` list, oldest first.
+- **`contact_id`** (with no `start`, `end` or `query`): the meetings with that contact on every calendar shared with the workspace at subject and metadata or full level, the user's own included, newest first (`order: "newest_first"`). A calendar shared at dates only contributes nothing here, the user's own included. The list is capped and not exhaustive. `team_interactions` on `dex_get_contact` gives the first and latest dates.
+
+A teammate's meeting has no `providerId` or `email`. It carries `shared_id` (treat it as opaque; it is not an event id, so never pass it to get, update or delete), `member_user_ids` (the members whose shared calendars hold it, not every attendee; resolve names with `dex_list_workspace_members`) and `visibility`: `metadata` gives the title, time and attendees, and `full` adds `descriptionOfEvent`. Refused combinations fail with invalid input before anything is read.
 
 ```json
 {
@@ -1102,7 +1141,7 @@ List or search events across all connected calendars. Defaults to now through th
 
 ### dex_get_calendar_event
 
-Get one live provider event, including attendees, conferencing links, and recurrence flags. Personal Dex connection only (refused on a Dex for Teams workspace connection).
+Get one live provider event, including attendees, conferencing links, and recurrence flags. Personal Dex connection only (refused on a Dex for Teams workspace connection, where `dex_list_calendar_events` already returns the user's own shared events in full).
 
 | Parameter          | Type   | Required | Description                                                          |
 | ------------------ | ------ | -------- | -------------------------------------------------------------------- |
@@ -1191,20 +1230,23 @@ Always confirm the event identity, account, and attendee impact.
 
 ### dex_search_emails
 
-Search message metadata live across all connected Google and Microsoft mailboxes. The tool is read-only and cannot send email. Personal Dex connection only (refused on a Dex for Teams workspace connection).
+Search message metadata live across all connected Google and Microsoft mailboxes. The tool is read-only and cannot send email. On a Dex for Teams workspace connection it reads one workspace contact's emails at a time.
 
-| Parameter | Type         | Required | Description                                                                                                    |
-| --------- | ------------ | -------- | -------------------------------------------------------------------------------------------------------------- |
-| `query`   | string       | No       | Plain-text name, company, domain, or topic; omit for recent messages                                           |
-| `folder`  | enum         | No       | `inbox` = received mail only (use for "my inbox"); `all` (default) spans the whole mailbox including sent mail |
-| `after`   | ISO datetime | No       | Only messages after this time                                                                                  |
-| `before`  | ISO datetime | No       | Only messages before this time                                                                                 |
-| `cursor`  | string       | No       | `next_cursor` from the previous page, to continue a LISTING. Rejected when `query` is set                      |
-| `limit`   | integer      | No       | Maximum messages per page (default 25, max 100)                                                                |
+| Parameter    | Type         | Required | Description                                                                                                                                                            |
+| ------------ | ------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`      | string       | No       | Plain-text name, company, domain, or topic; omit for recent messages. Personal Dex only                                                                                |
+| `folder`     | enum         | No       | `inbox` = received mail only (use for "my inbox"); `all` (default) spans the whole mailbox including sent mail. Personal Dex only                                      |
+| `after`      | ISO datetime | No       | Only messages after this time. Personal Dex only                                                                                                                       |
+| `before`     | ISO datetime | No       | Only messages before this time. Personal Dex only                                                                                                                      |
+| `cursor`     | string       | No       | `next_cursor` from the previous page, to continue a LISTING. Rejected when `query` is set. Personal Dex only                                                           |
+| `limit`      | integer      | No       | Maximum messages per page (default 25, max 100)                                                                                                                        |
+| `contact_id` | UUID         | No       | Workspace connection only, and required there: the workspace contact whose emails to read. Refused on Personal Dex, where `query` with their name or address does this |
 
 Without date bounds, results cover roughly the last six months. Provider operators such as `from:` and `to:` are neutralized. Results include sender, participants, subject, snippet, date, and provider link, but not full bodies.
 
 **Only listings paginate.** With `query`, results are a single relevance-ranked page and passing `cursor` is rejected — narrow a search with dates or better keywords instead. When listing, prefer following `next_cursor` over widening the date range.
+
+**On a Dex for Teams workspace connection** a share only ever exposes messages that involve a workspace contact, so there is no workspace inbox or free-text search. Pass `contact_id` (find it with `dex_search_contacts`) for the newest emails with that contact, from roughly the last six months, in every mailbox shared with the workspace at subject and metadata or full level, the user's own included, redacted to each share's level. A mailbox shared at dates only contributes nothing. The result is the newest `limit` emails and not exhaustive. There is never a cursor: if it comes back `_truncated`, ask again with a smaller `limit`. Each email carries `shared_id`, `member_user_ids` (the members whose shared mailboxes hold it, not every recipient; resolve names with `dex_list_workspace_members`) and `visibility`: `metadata` gives the sender, participants, subject and date, and `full` adds the `snippet`. No body is available on either connection. `warnings` means some shared mailboxes could not be read. Without `contact_id`, or with a Personal-only parameter, the call fails with invalid input before anything is read.
 
 ```json
 {
@@ -1213,6 +1255,78 @@ Without date bounds, results cover roughly the last six months. Provider operato
   "limit": 50
 }
 ```
+
+---
+
+## Attention Items
+
+Attention items are email threads Dex flagged as waiting on the user — a reply someone expects, or an action such as signing or renewing — generated hourly from recent mail and shown on the Dex home page. All five tools are Personal Dex only; a workspace connection refuses them. The usual flow: list the items, read the thread, draft a reply, show it to the user, and send only what they approve.
+
+### dex_list_attention_items
+
+List the user's open attention items, newest first.
+
+| Parameter          | Type    | Required | Description                                  |
+| ------------------ | ------- | -------- | -------------------------------------------- |
+| `include_resolved` | boolean | No       | Also list items already marked done          |
+| `limit`            | integer | No       | Maximum items per page (default 25, max 100) |
+| `cursor`           | UUID    | No       | `next_cursor` from the previous page         |
+
+**Returns:** `items`: array of `id`, `title` (e.g. "Reply to Matt about the intro"), `body`, `sender_name`, `sender_email`, `contact` (`{ id, full_name }` when the sender is a Dex contact), `link` (opens the thread in the mail client), `created_at` and, for a done item, `resolved_at`; plus `has_more` and `next_cursor`.
+
+---
+
+### dex_get_attention_item_thread
+
+Read the email thread behind an item live from the user's mailbox, oldest message first. Nothing is stored.
+
+| Parameter           | Type | Required | Description                                     |
+| ------------------- | ---- | -------- | ----------------------------------------------- |
+| `attention_item_id` | UUID | Yes      | The item's `id` from `dex_list_attention_items` |
+
+**Returns:** `subject`, `account_email` (the mailbox holding the thread) and `messages`: the newest five messages, oldest first, each with `id`, `from`, `reply_to` (when set — a reply goes there), `date`, `from_user` and `text` (clipped to 4,000 characters); `earlier_messages_omitted` counts any older ones left out. The `id` of the message being answered — normally the latest one with `from_user: false` — is the `message_id` for `dex_send_attention_item_reply`. `{ found: false }` when no connected mailbox knows the thread.
+
+---
+
+### dex_draft_attention_item_reply
+
+Draft the user's reply in their saved drafting style. Nothing is sent or saved.
+
+| Parameter           | Type   | Required | Description                                                          |
+| ------------------- | ------ | -------- | -------------------------------------------------------------------- |
+| `attention_item_id` | UUID   | Yes      | The item's `id`                                                      |
+| `instruction`       | string | No       | Short steer, up to 300 characters, e.g. "decline politely"           |
+| `current_draft`     | object | No       | `{ subject, body }` of the draft so far, so `instruction` revises it |
+
+**Returns:** `body`. The reply is sent in the thread under its own subject, to the answered message's `reply_to` (or its sender) — read it from `dex_get_attention_item_thread`.
+
+---
+
+### dex_send_attention_item_reply
+
+Send the reply into the thread from the mailbox that holds it, to the message being answered's `reply_to` (or its sender), then mark the item done. **This sends real email**: call it only after the user approved the exact text.
+
+| Parameter           | Type     | Required | Description                                                                                                   |
+| ------------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `attention_item_id` | UUID     | Yes      | The item's `id`                                                                                               |
+| `message_id`        | string   | Yes      | The `id` of the message being answered, from `dex_get_attention_item_thread`                                  |
+| `body`              | string   | Yes      | The plain-text reply, exactly as approved                                                                     |
+| `cc`                | string[] | No       | Optional cc recipients (max 10), each a valid email address; duplicates and the primary recipient are dropped |
+
+**Returns:** `sent: true` and the `item`, now done. Repeating the same call does not send twice. An item already done, or one whose thread can no longer be read, is refused and nothing is sent.
+
+---
+
+### dex_resolve_attention_item
+
+Mark an item done when the user handled it some other way, or reopen it.
+
+| Parameter           | Type    | Required | Description                                        |
+| ------------------- | ------- | -------- | -------------------------------------------------- |
+| `attention_item_id` | UUID    | Yes      | The item's `id`                                    |
+| `done`              | boolean | No       | `true` (default) marks it done; `false` reopens it |
+
+**Returns:** the item, with `resolved_at` set while done.
 
 ---
 
@@ -1282,7 +1396,7 @@ Naming another workspace with `?workspace=` is refused. A workspace only works w
 
 ### dex_list_workspace_members
 
-List the active members of the connection's workspace, so a reminder can be assigned to one. Use a member's `member_id` as `assignee_id` on `dex_create_reminder`, `dex_update_reminder` and `dex_list_reminders`. Viewers can read but cannot edit or complete a reminder, so assigning one strands it; prefer owner, admin or standard members. Refused on a Personal connection.
+List the active members of the connection's workspace, so a reminder can be assigned to one. Use a member's `member_id` as `assignee_id` on `dex_create_reminder`, `dex_update_reminder` and `dex_list_reminders`. Viewers can read but cannot edit or complete a reminder, so assigning one strands it; prefer owner, admin or standard members. On a Personal connection it answers `workspace_context_required`.
 
 | Parameter | Type   | Required | Description                                                                                              |
 | --------- | ------ | -------- | -------------------------------------------------------------------------------------------------------- |
@@ -1291,6 +1405,197 @@ List the active members of the connection's workspace, so a reminder can be assi
 | `cursor`  | string | No       | `next_cursor` from the previous page; pass the SAME `query` with it. A new query starts without a cursor |
 
 **Returns:** `workspace_id`, `members`: array of `member_id` (the member's user id), `name`, `email`, `role` and `is_you` (true for the caller), `has_more` and, when `has_more` is true, `next_cursor`. A page can hold fewer than `limit` members when the response size limit is reached; `next_cursor` still resumes at the first member not returned.
+
+---
+
+## Companies
+
+Dex for Teams workspace connections only: every tool here answers `workspace_context_required` on a Personal connection, and needs Companies enabled for the workspace. Companies cannot be archived, restored or deleted over MCP; use the Dex app.
+
+### dex_list_companies
+
+List the workspace's companies with optional filters, sorting and pagination. Filters AND together; archived companies are left out unless `archived` is true. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter               | Type            | Required | Description                                                                 |
+| ----------------------- | --------------- | -------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `query`                 | string          | No       | Name contains this text (case-insensitive)                                  |
+| `name`                  | string          | No       | Name equals this text exactly (case-insensitive); not together with `query` |
+| `description_contains`  | string          | No       | Description contains this text                                              |
+| `headquarters_contains` | string          | No       | Headquarters location contains this text                                    |
+| `employees`             | enum[]          | No       | Head-count buckets to match (any of them)                                   |
+| `country_codes`         | string[]        | No       | Two-letter ISO country codes (any of them)                                  |
+| `industries`            | string[]        | No       | LinkedIn industries as stored (any of them)                                 |
+| `owner`                 | string          | string[] | No                                                                          | `me`, `none` (no owner) or a `member_id`; an array matches any |
+| `tag_ids`               | string[] (UUID) | No       | Tag IDs (`dex_list_tags`)                                                   |
+| `tag_match`             | enum            | No       | `any` (default), `all` or `none`                                            |
+| `starred`               | boolean         | No       | `true`: only companies you starred; `false`: only the others                |
+| `archived`              | boolean         | No       | `true` lists archived companies instead (default `false`)                   |
+| `custom_fields`         | object[]        | No       | Filters on company custom fields (`dex_list_custom_fields`), AND semantics  |
+| `sort_by`               | enum            | No       | Sort field (default `contacts_count`)                                       |
+| `sort_direction`        | enum            | No       | `asc` (default for name) or `desc` (default otherwise)                      |
+| `limit`                 | number          | No       | Results per page, 1-100 (default 25)                                        |
+| `cursor`                | string          | No       | `next_cursor` from the previous page; keep the same filters                 |
+
+**Returns:** `{ items: Company[], has_more: boolean, next_cursor?: string }`. Each row has `owner_member_id`, `tag_ids`, custom field values, `contacts_count`, `connections_count` and `last_interaction_at`.
+
+---
+
+### dex_get_company
+
+Get one company by ID, archived ones included. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter    | Type          | Required | Description                       |
+| ------------ | ------------- | -------- | --------------------------------- |
+| `company_id` | string (UUID) | Yes      | Company ID (`dex_list_companies`) |
+
+**Returns:** `company`: the fields, `contacts_count` (`{ current, past }`) and `team`: `members` (who know at least one of its contacts, most first) and `you`, each with `member_id`, `known_contacts_count` and `last_interaction_at`.
+
+---
+
+### dex_create_company
+
+Create 1-100 companies in one all-or-nothing call: if any one is refused (for example a duplicate website, 409), none is created. Search with `dex_list_companies` first to avoid duplicates. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter         | Type     | Required | Description                                                                                                                                                                                                                                                              |
+| ----------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `idempotency_key` | string   | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation.                                                                                                                       |
+| `companies`       | object[] | Yes      | The companies to create; only `name` is required. Fields: `name`, `description`, `website_url`, `linkedin_slug`, `facebook_slug`, `x_slug`, `instagram_slug`, `headquarters_location`, `country_code`, `email`, `phone_number`, `number_of_employees`, `owner_member_id` |
+
+**Returns:** `companies`: the created rows.
+
+---
+
+### dex_update_company
+
+Update a company's fields. Only the fields you pass change; `null` clears a nullable field. At least one field is required. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter               | Type          | Required | Description                                                                                                                                        |
+| ----------------------- | ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `idempotency_key`       | string        | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation. |
+| `company_id`            | string (UUID) | Yes      | Company ID (`dex_list_companies`)                                                                                                                  |
+| `name`                  | string        | No       | New company name                                                                                                                                   |
+| `description`           | string        | null     | No                                                                                                                                                 | What the company does                                                                       |
+| `website_url`           | string        | null     | No                                                                                                                                                 | Website URL or domain; unique in the workspace (409 if another company has it)              |
+| `linkedin_slug`         | string        | null     | No                                                                                                                                                 | LinkedIn company URL or handle                                                              |
+| `facebook_slug`         | string        | null     | No                                                                                                                                                 | Facebook page URL or handle                                                                 |
+| `x_slug`                | string        | null     | No                                                                                                                                                 | X (Twitter) URL or handle                                                                   |
+| `instagram_slug`        | string        | null     | No                                                                                                                                                 | Instagram URL or handle                                                                     |
+| `headquarters_location` | string        | null     | No                                                                                                                                                 | Free-text location, e.g. `Berlin, Germany`                                                  |
+| `country_code`          | string        | null     | No                                                                                                                                                 | Two-letter ISO 3166-1 code                                                                  |
+| `email`                 | string        | null     | No                                                                                                                                                 | Company email address                                                                       |
+| `phone_number`          | string        | null     | No                                                                                                                                                 | Digits, spaces and `+ ( ) - .` only                                                         |
+| `number_of_employees`   | number        | null     | No                                                                                                                                                 | Head count                                                                                  |
+| `owner_member_id`       | string        | null     | No                                                                                                                                                 | A `member_id` from `dex_list_workspace_members`, or `me`; `null` leaves it without an owner |
+
+**Returns:** `company`: the updated row.
+
+---
+
+### dex_set_company_owner
+
+Set or clear the owner of 1-100 companies, one update per company in order. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter         | Type            | Required | Description                                                                                                                                        |
+| ----------------- | --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `idempotency_key` | string          | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation. |
+| `company_ids`     | string[] (UUID) | Yes      | Company IDs (`dex_list_companies`)                                                                                                                 |
+| `owner_member_id` | string          | null     | Yes                                                                                                                                                | A `member_id` from `dex_list_workspace_members`, or `me`; `null` clears the owner |
+
+**Returns:** `updated` and `company_ids`. If one fails part-way, the result also has `not_updated_ids` and `error`; retry those.
+
+---
+
+### dex_add_tags_to_companies
+
+Add workspace tags to companies (tag IDs only; create a tag with `dex_create_tag`). Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter         | Type            | Required | Description                                                                                                                                        |
+| ----------------- | --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key` | string          | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation. |
+| `company_ids`     | string[] (UUID) | Yes      | Company IDs (`dex_list_companies`)                                                                                                                 |
+| `tag_ids`         | string[] (UUID) | Yes      | Tag IDs (`dex_list_tags`)                                                                                                                          |
+
+**Returns:** `added`: the number of tag links this call created.
+
+---
+
+### dex_remove_tags_from_companies
+
+Remove workspace tags from companies (tag IDs only; create a tag with `dex_create_tag`). Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter         | Type            | Required | Description                                                                                                                                        |
+| ----------------- | --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key` | string          | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation. |
+| `company_ids`     | string[] (UUID) | Yes      | Company IDs (`dex_list_companies`)                                                                                                                 |
+| `tag_ids`         | string[] (UUID) | Yes      | Tag IDs (`dex_list_tags`)                                                                                                                          |
+
+**Returns:** `removed`: the number of tag links this call removed.
+
+---
+
+### dex_merge_companies
+
+Merge duplicate companies into one target. Contacts, roles, tags, custom field values and links, views, favorites and org chart members move onto the target and the source companies are deleted. The target keeps its own values and fills empty ones from the sources, unless `field_choices` names a source for a field, so compare the companies with `dex_get_company` first. This is destructive: only Dex support can undo a merge, from the merge log (the returned `merge_log_id`), so confirm the choice with the user first. Merging an active source into an archived target needs `confirm_archived_target: true`. If a link field would go over its 50-link cap the call fails with 409 and nothing is merged. Only workspace owners and admins can merge companies. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter                 | Type                 | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------- | -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idempotency_key`         | string               | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `target_id`               | string (UUID)        | Yes      | The company that survives (`dex_list_companies`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `source_ids`              | string[] (UUID)      | Yes      | Companies merged into the target and then deleted (1-50); not the target                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `field_choices`           | Record<string, UUID> | No       | Per field, the company whose value wins: a key is one of description, linkedin_description, website_url, linkedin_slug, facebook_slug, x_slug, instagram_slug, headquarters_location, email, phone_number, arr_estimate, number_of_employees, linkedin_data, assignee_id, logo (`assignee_id` is the `owner_member_id`) or `custom_field:<custom field id>` for a single-value custom field, and the value is the target's or a source's id. A chosen company with no value for that field is skipped, so a choice can't keep a field empty. Fields not listed keep the target's value, or else take the first non-empty source's. |
+| `confirm_archived_target` | boolean              | No       | Set true to merge an active source into an archived target; refused without it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+**Returns:** `company`: the surviving target company; `merge_log_id`: the merge log id Dex support restores from.
+
+---
+
+### dex_list_company_contacts
+
+List a company's contacts, active before archived. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter    | Type          | Required | Description                                                 |
+| ------------ | ------------- | -------- | ----------------------------------------------------------- |
+| `company_id` | string (UUID) | Yes      | Company ID (`dex_list_companies`)                           |
+| `section`    | enum          | No       | `current` (default) or `past` (only past roles)             |
+| `limit`      | number        | No       | Results per page, 1-100 (default 25)                        |
+| `cursor`     | string        | No       | `next_cursor` from the previous page; keep the same section |
+
+**Returns:** `{ items, has_more, next_cursor? }`; each row has `contact_id` (names via `dex_get_contact`), `is_archived`, `roles`, `team_connection_count`, `notes_count` (shared workspace notes only; private notes are not counted) and `connected_with_you`.
+
+---
+
+### dex_get_company_activity
+
+The company's activity across the workspace, newest first: shared notes on its contacts (current and past), each member's first and last email or meeting with them, and LinkedIn connection days. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter    | Type                | Required | Description                                                   |
+| ------------ | ------------------- | -------- | ------------------------------------------------------------- |
+| `company_id` | string (UUID)       | Yes      | Company ID (`dex_list_companies`)                             |
+| `kinds`      | enum[]              | No       | `notes`, `emails`, `calendar`, `linkedin` (default all)       |
+| `member_ids` | string[]            | No       | Only activity by these members (`dex_list_workspace_members`) |
+| `start_date` | string (YYYY-MM-DD) | No       | On or after this UTC day                                      |
+| `end_date`   | string (YYYY-MM-DD) | No       | On or before this UTC day                                     |
+| `limit`      | number              | No       | Items per page, 1-100 (default 25)                            |
+| `cursor`     | string              | No       | `next_cursor` from the previous page; keep the same filters   |
+
+**Returns:** `{ items, has_more, next_cursor? }`. Each item is `{ type: "NOTE" | "INTERACTION", date, data, company_contacts? }`; `data.member_id` is the author or interacting member. An item's `company_contacts` (`[{ contact_id, former }]`) lists the contacts it names that have a role at this company, `former: true` for past roles only; a named contact missing from it has no role there (a shared note can tag people from elsewhere). It is omitted when none do.
+
+---
+
+### dex_set_contact_company
+
+Record where a workspace contact works, by `company_id` or by the exact name of an existing company. It never creates a company: create it first with `dex_create_company`. Workspace connections only; requires Companies to be enabled for the workspace.
+
+| Parameter         | Type          | Required | Description                                                                                                                                                                                                                                                              |
+| ----------------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `idempotency_key` | string        | No       | Retry key. Reuse it only for retries of the same logical operation with identical arguments within 24 hours; use a new key for each new operation.                                                                                                                       |
+| `contact_id`      | string (UUID) | Yes      | Contact ID                                                                                                                                                                                                                                                               |
+| `company_id`      | string (UUID) | No       | Company ID; exactly one of `company_id` or `company_name`                                                                                                                                                                                                                |
+| `company_name`    | string        | No       | Exact name of an existing active company (case-insensitive); several matches are refused with their ids                                                                                                                                                                  |
+| `title`           | string        | No       | Job title at the company                                                                                                                                                                                                                                                 |
+| `mode`            | enum          | No       | `change_employer` (default) ends the current roles and adds this one as the primary role; `add_concurrent` adds a current role alongside the others; `correct` fixes the current primary role in place without recording a job change, and is refused when there is none |
+
+**Returns:** `roles`, `contact` (with its derived `company` text) and the `company_id` used.
 
 ---
 
@@ -1304,4 +1609,5 @@ Common error patterns:
 - **Calendar write scope missing**: Ask the user to grant calendar access for that account in Settings → Sync & Integrations.
 - **Ambiguous calendar account**: Reuse the event's `email` and `provider` for get/update/delete; do not guess when one email exists under both providers.
 - **Truncated response**: Response exceeded 25,000 chars. For a READ tool, use a smaller page for cursor tools or narrow the query/date range for single-batch tools. For a WRITE tool the write already completed and only the response was cut: never repeat the call (it would run the write again); read the omitted rows or fields back as `_truncated.message` says.
-- **Refused on a Dex for Teams workspace connection**: Some tools and options are Personal Dex only (calendar, `dex_search_emails`, priority, and the options marked "Personal Dex only" above), and a few writes are never available over MCP in a workspace (deleting contacts, tags, groups or custom fields, merging contacts, `dex_archive_contacts`). The error says so, and for a refused tool names the alternative; nothing was read or changed, and nothing falls back to Personal data. Tell the user and use the alternative, or the Dex app.
+- **Refused on a Dex for Teams workspace connection**: Some tools and options are Personal Dex only (calendar get, create, update and delete, priority, and the options marked "Personal Dex only" above; `dex_list_calendar_events` and `dex_search_emails` instead read what members share with the workspace), and a few writes are never available over MCP in a workspace (deleting contacts, tags, groups or custom fields, merging contacts, `dex_archive_contacts`). The error says so, leading with its code (`workspace_context_unsupported` for a Personal-only tool or option), and for a refused tool or option names the alternative; nothing was read or changed, and nothing falls back to Personal data. Tell the user and use the alternative, or the Dex app.
+- **Refused on a Personal connection**: The company tools, `dex_list_workspace_members` and the options marked for workspace connections only answer `workspace_context_required`. Nothing was read or changed. Leave the option out, or tell the user the tool needs a connection to a Dex for Teams workspace.
