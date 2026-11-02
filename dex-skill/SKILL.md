@@ -317,6 +317,7 @@ When a user says "I have a meeting with X":
 ### 8. Manage Calendar Events
 
 - Use `dex_list_calendar_events` for a time window or plain-text event search across all connected Google/Microsoft accounts
+- On a Dex for Teams workspace connection it reads only what members share with the workspace: a range of at most 7 days (one day by default, no `query`), or `contact_id` for one contact's meetings, newest first. Get, create, update and delete stay Personal only
 - Reuse an event's returned `email` as `account_email` for get/update/delete
 - For get/create/update/delete, also pass `account_provider` when the same address is connected to both providers
 - For timed events, provide both `start_datetime` and `end_datetime` with explicit offsets; include an IANA `timezone`
@@ -335,6 +336,7 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 ### 9. Search Correspondence
 
 - Use `dex_search_emails` for live, read-only search across all connected Google/Microsoft mailboxes
+- On a Dex for Teams workspace connection it reads one workspace contact's emails at a time: pass `contact_id` (from `dex_search_contacts`); `query`, `folder`, `cursor`, `after` and `before` are refused there
 - To list recent mail, omit `query`; use `folder: 'inbox'` for received mail. Follow `next_cursor` while keeping the same folder and date bounds
 - Use plain keywords such as a name, company, domain, or topic; provider operators such as `from:` and `to:` are neutralized
 - Set `after` and `before` for precise date ranges; otherwise the search covers roughly the last six months
