@@ -127,10 +127,10 @@ A `near` the geocoder can't place returns no items and a `warning`. Tell the use
 
 List all contacts with cursor-based pagination. Returns lightweight summaries (id, name, company, job title). Use `dex_get_contact` for full details. Use `dex_search_contacts` for keyword search.
 
-| Parameter | Type    | Required | Description                              |
-| --------- | ------- | -------- | ---------------------------------------- |
-| `cursor`  | string  | No       | Pagination cursor from previous response |
-| `limit`   | integer | No       | Results per page, 1-500 (default 100)    |
+| Parameter | Type    | Required | Description                                                                             |
+| --------- | ------- | -------- | --------------------------------------------------------------------------------------- |
+| `cursor`  | string  | No       | Pagination cursor from previous response                                                |
+| `limit`   | integer | No       | Results per page (default 100). Returns at most 500 per page; larger values are clamped |
 
 **Returns:** `{ items: ContactSummary[], has_more: boolean, next_cursor?: string, count?: number }`
 
@@ -533,10 +533,10 @@ Relations are symmetric, so removing A↔B clears the link from both sides. The 
 
 List all tags with optional pagination.
 
-| Parameter | Type    | Required | Description                          |
-| --------- | ------- | -------- | ------------------------------------ |
-| `cursor`  | string  | No       | Pagination cursor                    |
-| `limit`   | integer | No       | Results per page, 1-500 (default 10) |
+| Parameter | Type    | Required | Description                                                     |
+| --------- | ------- | -------- | --------------------------------------------------------------- |
+| `cursor`  | string  | No       | Pagination cursor                                               |
+| `limit`   | integer | No       | Results per page (default 10); larger values are clamped to 500 |
 
 **Returns:** `{ items: Tag[], has_more: boolean, next_cursor?: string }`
 
@@ -628,10 +628,10 @@ Remove tags from contacts (bulk operation).
 
 List contact groups, most recent page first.
 
-| Parameter | Type    | Required | Description                              |
-| --------- | ------- | -------- | ---------------------------------------- |
-| `cursor`  | string  | No       | Pagination cursor from previous response |
-| `limit`   | integer | No       | Results per page, 1-1500 (default 200)   |
+| Parameter | Type    | Required | Description                                                       |
+| --------- | ------- | -------- | ----------------------------------------------------------------- |
+| `cursor`  | string  | No       | Pagination cursor from previous response                          |
+| `limit`   | integer | No       | Results per page (default 200); larger values are clamped to 1500 |
 
 **Returns:** `{ items: Group[], has_more: boolean, next_cursor?: string, count?: number }`
 
@@ -733,11 +733,11 @@ Remove contacts from a group (bulk operation).
 
 List contacts in a group with pagination.
 
-| Parameter  | Type          | Required | Description                           |
-| ---------- | ------------- | -------- | ------------------------------------- |
-| `group_id` | string (UUID) | Yes      | Group ID                              |
-| `cursor`   | string        | No       | Pagination cursor                     |
-| `limit`    | integer       | No       | Results per page, 1-1500 (default 10) |
+| Parameter  | Type          | Required | Description                                                      |
+| ---------- | ------------- | -------- | ---------------------------------------------------------------- |
+| `group_id` | string (UUID) | Yes      | Group ID                                                         |
+| `cursor`   | string        | No       | Pagination cursor                                                |
+| `limit`    | integer       | No       | Results per page (default 10); larger values are clamped to 1500 |
 
 **Returns:** `{ items: Contact[], has_more: boolean, next_cursor?: string }`, each a lean contact row (see `dex_create_contact`).
 
@@ -751,14 +751,14 @@ List contacts in a group with pagination.
 
 List notes on contact timelines with optional filtering by contact.
 
-| Parameter          | Type                 | Required | Description                                          |
-| ------------------ | -------------------- | -------- | ---------------------------------------------------- |
-| `contact_id`       | string (UUID)        | No       | Filter by contact ID                                 |
-| `start_date`       | date or ISO datetime | No       | Only notes on or after this bound, inclusive         |
-| `end_date`         | date or ISO datetime | No       | Only notes on or before this bound, inclusive        |
-| `cursor`           | string               | No       | Pagination cursor                                    |
-| `limit`            | integer              | No       | Results per page, 1-100 (default 10)                 |
-| `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default |
+| Parameter          | Type                 | Required | Description                                                                                    |
+| ------------------ | -------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `contact_id`       | string (UUID)        | No       | Filter by contact ID                                                                           |
+| `start_date`       | date or ISO datetime | No       | Only notes on or after this bound, inclusive                                                   |
+| `end_date`         | date or ISO datetime | No       | Only notes on or before this bound, inclusive                                                  |
+| `cursor`           | string               | No       | Pagination cursor                                                                              |
+| `limit`            | integer              | No       | Results per page (default 10). A workspace page returns at most 100; larger values are clamped |
+| `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default                                           |
 
 **Returns:** `{ items: Note[], has_more: boolean, next_cursor?: string }`
 
@@ -901,7 +901,7 @@ List reminders/tasks with optional filtering by contact, completion status, over
 | `sort_by`     | enum                | No       | `due_at_date` (default), `created_at`, `last_completed_at`                                                                                                                                                                                                                                |
 | `sort_order`  | enum                | No       | `asc` (default) or `desc`                                                                                                                                                                                                                                                                 |
 | `cursor`      | string              | No       | Pagination cursor                                                                                                                                                                                                                                                                         |
-| `limit`       | integer             | No       | Results per page, 1-100 (default 10)                                                                                                                                                                                                                                                      |
+| `limit`       | integer             | No       | Results per page (default 10)                                                                                                                                                                                                                                                             |
 
 **Returns:** `{ items: Reminder[], has_more: boolean, next_cursor?: string }`
 
