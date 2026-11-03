@@ -103,7 +103,7 @@ Search contacts by name, email, or any keyword. Returns up to `limit` results. U
 | `query`     | string  | Yes      | Keyword query. Use empty string when `near` is the only filter or to browse by last interaction |
 | `near`      | string  | No       | Place for real geographic proximity search, such as `Bay Area` or `Sydney`. Personal Dex only   |
 | `radius_km` | number  | No       | Positive radius around `near` in kilometers (default 50). Personal Dex only                     |
-| `limit`     | integer | No       | Max results, 1-200 (default 50)                                                                 |
+| `limit`     | integer | No       | Max results to return (default 50); values above 200 are capped at 200                          |
 
 **Returns:** `{ items: Contact[], count: number }`
 
