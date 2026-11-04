@@ -100,7 +100,7 @@ Complete parameter documentation for all Dex MCP tools.
 
 ### dex_search_contacts
 
-Search contacts by name, email, or any keyword. Returns up to `limit` results. Use an empty query to list contacts sorted by most recently interacted.
+Search contacts by name, email, phone number, or any keyword. Phone numbers are matched on digits and formatting is ignored; a number without its country code also matches, but a different country code does not. Returns up to `limit` results. Use an empty query to list contacts sorted by most recently interacted.
 
 | Parameter   | Type    | Required | Description                                                                                     |
 | ----------- | ------- | -------- | ----------------------------------------------------------------------------------------------- |
@@ -160,7 +160,7 @@ Get a single contact by ID with emails, phone numbers, saved/geocoded location, 
 
 **Use `fields` on rich contacts.** A contact with many notes, tags, and custom fields can exceed the response limit; asking only for the relations you need keeps it inside.
 
-**Keep-in-touch cadence.** On Personal Dex it is `frequency` / `never_keep_in_touch`. On a Dex for Teams workspace connection it is `keep_in_touch`, with the contact's Team cadence (shared with the workspace) as `team` and your own private My cadence as `my`, each left out when not set. So `keep_in_touch: {}` means the contact has no cadence at all, while a missing `keep_in_touch` key means the cadences could not be read — not that there are none.
+**Keep-in-touch cadence.** On Personal Dex it is `frequency` / `never_keep_in_touch`, with `last_seen_at` (last touch) and `next_reminder_at` (next due date) when set. On a Dex for Teams workspace connection it is `keep_in_touch`, with the contact's Team cadence (shared with the workspace) as `team` and your own private My cadence as `my`, each left out when not set. So `keep_in_touch: {}` means the contact has no cadence at all, while a missing `keep_in_touch` key means the cadences could not be read — not that there are none.
 
 `recent_notes` rows carry the same derived `meeting_type` as the note tools (see [Notes](#notes)).
 
@@ -175,7 +175,7 @@ Create one or more contacts. Supports two modes:
 
 **Creating does NOT deduplicate.** A contact with the same name or email as an existing one becomes a second contact — Dex does not match on email. Search first (`dex_search_contacts`) when the person may already be in Dex.
 
-**Pass an `idempotency_key` for a batch,** and reuse it if you must send the same call again. Without one, a repeated call creates every contact a second time.
+**Pass an `idempotency_key`,** and reuse it if you must send the same call again. Without one, a repeated call creates the contact (or every contact in a batch) a second time.
 
 | Parameter         | Type   | Required | Description                                                                                                                                                                                                                                     |
 | ----------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -391,6 +391,8 @@ Merge duplicate contacts. Dex automatically keeps the oldest record in each grou
 
 Read `mergedContactIds` from the result to identify the survivor; never infer it from input order.
 
+A chosen survivor (`primary_contact_id`) keeps its own fields and only fills empty ones from the others. Without one, the name comes from the survivor when it has a real one (a missing first or last name is filled from the others), and for other fields the most recently updated contact's non-empty value wins.
+
 On a Dex for Teams workspace connection only owners and admins can merge, at most 10 contacts per group and 50 per call.
 
 ---
@@ -569,7 +571,7 @@ Create a new tag.
 { "name": "Investor" }
 ```
 
-**Returns:** `{ tag }`. Tag names are unique regardless of letter case: when a tag with the same name already exists (e.g. "Design Partner" when you pass "design partner"), that tag is returned instead of a duplicate, with `existing: true` when its stored name differs in letter case from the one you passed. Repeating the exact name returns the same tag without the flag.
+**Returns:** `{ tag }`. Dex treats tag names that differ only in letter case as the same tag: when a tag with the same name already exists (e.g. "Design Partner" when you pass "design partner"), that tag is returned instead of a duplicate, with `existing: true` when its stored name differs in letter case from the one you passed. Repeating the exact name returns the same tag without the flag.
 
 ---
 
@@ -582,6 +584,8 @@ Update an existing tag.
 | `idempotency_key` | string        | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
 | `tag_id`          | string (UUID) | Yes      | Tag ID                                                                                                                                                                                                                                          |
 | `name`            | string        | No       | New tag name                                                                                                                                                                                                                                    |
+
+Renaming to another tag's name, ignoring letter case, is refused with "Tag already exists" and changes nothing. Changing only this tag's own letter case is allowed.
 
 ---
 
@@ -630,7 +634,7 @@ Remove tags from contacts (bulk operation).
 
 ### dex_list_groups
 
-List contact groups, most recent page first.
+List contact groups, sorted alphabetically by name.
 
 | Parameter | Type    | Required | Description                                                       |
 | --------- | ------- | -------- | ----------------------------------------------------------------- |
@@ -655,7 +659,7 @@ Get a single group by ID, with its direct sub-groups (`sub_groups`) and its coun
 
 ### dex_create_group
 
-Create a new contact group, optionally nested under an existing group. A group cannot be its own parent or ancestor.
+Create a new contact group, optionally nested under an existing group. A group cannot be its own parent or ancestor. Repeating the exact name returns the existing group unchanged, so a retry never creates a duplicate.
 
 | Parameter         | Type                 | Required | Description                                                                                                                                                                                                                                     |
 | ----------------- | -------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -729,7 +733,9 @@ Remove contacts from a group (bulk operation).
 | `group_id`        | string (UUID)   | Yes      | Group ID                                                                                                                                                                                                                                        |
 | `contact_ids`     | string[] (UUID) | Yes      | Contact IDs to remove                                                                                                                                                                                                                           |
 
-**Returns:** `removed` (IDs processed, including ones that were not members), `count` (memberships deleted) and `remaining`. `remaining` is always present: retry the IDs in it to finish a partial write, and an empty list (`[]`) means every ID was processed.
+A group that doesn't exist answers `record_not_found` and nothing changes.
+
+**Returns:** `removed` (only the contacts this call removed; requested IDs that were not members are left out), `count` (how many) and `remaining`. `remaining` is always present: retry the IDs in it to finish a partial write, and an empty list (`[]`) means every ID was processed.
 
 ---
 
@@ -862,13 +868,14 @@ Delete a note. Irreversible.
 
 ### dex_list_upcoming_reminders_and_birthdays
 
-What is coming up for the user inside a date window, in one call — the same three lists as the Dex homepage. Use this for "whose birthday is next week?", "who should I reach out to this week?" and "what do I have coming up?" instead of stitching together `dex_list_reminders` and a contact query.
+What is coming up for the user inside a date window, in one call — the same three lists as the Dex homepage. Use this for "whose birthday is next week?", "who should I reach out to this week?" and "what do I have coming up?" instead of stitching together `dex_list_reminders` and a contact query. Overdue keep-in-touch contacts sort first, so on an account with many of them a call for all three lists can fill up before any birthday or reminder: pass `sections` for the list you need.
 
-| Parameter | Type                | Required | Description                                                                                                                                                                               |
-| --------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `from`    | string (YYYY-MM-DD) | No       | First day of the window, inclusive. Defaults to today in UTC — pass the user's local date when it may differ. It moves the window only: `is_overdue` and `due_on` are still judged in UTC |
-| `days`    | integer             | No       | Window length in days, counting `from` as day one (default 7, max 92). 7 = the coming week, 30 = the coming month                                                                         |
-| `kind`    | string              | No       | Dex for Teams workspace only: `"all"` (default), `"team"` or `"my"` — which keep-in-touch cadences to list. Refused on Personal Dex                                                       |
+| Parameter  | Type                | Required | Description                                                                                                                                                                               |
+| ---------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `from`     | string (YYYY-MM-DD) | No       | First day of the window, inclusive. Defaults to today in UTC — pass the user's local date when it may differ. It moves the window only: `is_overdue` and `due_on` are still judged in UTC |
+| `days`     | integer             | No       | Window length in days, counting `from` as day one (default 7, max 92). 7 = the coming week, 30 = the coming month                                                                         |
+| `kind`     | string              | No       | Dex for Teams workspace only: `"all"` (default), `"team"` or `"my"` — which keep-in-touch cadences to list. Refused on Personal Dex                                                       |
+| `sections` | string[]            | No       | Any of `birthdays`, `reminders`, `keep_in_touch` (default: all three). The sections left out come back empty and are not read. Ask for `["birthdays"]` for a birthday question            |
 
 **Returns:** `{ window: { from, to }, birthdays: [], reminders: [], keep_in_touch: [] }`
 
@@ -879,7 +886,7 @@ Behavior worth knowing before you answer the user from it:
 - **`keep_in_touch`** DOES include contacts already overdue for a touch, flagged `is_overdue`, because Dex keeps showing them as due until the touch is logged (`dex_complete_keep_in_touch`).
 - Archived contacts never appear. Birthdays the user already marked done this year are omitted.
 - Fields whose value is null are omitted from each row, so a contact with no name comes back as `contact_id` alone — use `dex_get_contact` for the full record.
-- Large windows are trimmed to fit the response budget: `reminders_truncated` / `keep_in_touch_truncated` flag a cut, and `_truncated.message` says what was left out and how to see it. The keep-in-touch list is everything due by the end of the window, overdue included, so a later `from` returns the same soonest contacts again: page the rest with `dex_filter_contacts` (`has_frequency: true`; on a workspace connection that covers Team cadences only) and its `next_cursor`, and read each one's due date with `dex_get_contact`. Dropped one-off reminders are reachable with `dex_list_reminders` (`is_complete: false` with `due_after` / `due_before`).
+- Large windows are trimmed to fit the response budget: `reminders_truncated` / `keep_in_touch_truncated` flag a cut, and `_truncated.message` says what was left out and how to see it. The keep-in-touch list is everything due by the end of the window, overdue included, so a later `from` returns the same soonest contacts again: page the rest with `dex_filter_contacts` (`has_frequency: true`; on a workspace connection that covers Team cadences only) and its `next_cursor`, and read each one's due date with `dex_get_contact` (`next_reminder_at` on Personal Dex). Dropped birthdays or reminders come back without the keep-in-touch rows when you call again with `sections: ["birthdays"]` or `sections: ["reminders"]` and the same `from` and `days`; one-off reminders also page with `dex_list_reminders` (`is_complete: false` with `due_after` / `due_before`).
 
 ```json
 { "days": 30 }
@@ -1009,7 +1016,7 @@ List custom field definitions: contact fields by default.
 
 ### dex_create_custom_field
 
-Create a new custom field definition. In a Dex for Teams workspace, only owners and admins can create field definitions.
+Create a new custom field definition. In a Dex for Teams workspace, only owners and admins can create field definitions. Field names are not unique: without `idempotency_key`, a retry creates a second field with the same name.
 
 | Parameter         | Type     | Required | Description                                                                                                                                                                                                                                                                                                           |
 | ----------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1044,7 +1051,7 @@ Update an existing custom field definition: its name and, for an autocomplete or
 | `idempotency_key` | string        | No       | Retry key (1–200 letters, digits, underscores, colons, dots, or hyphens). Reuse only for the same logical operation with identical arguments within 24 hours; use a new key for each new operation. Omission keeps random-per-attempt behavior. |
 | `custom_field_id` | string (UUID) | Yes      | Custom field ID                                                                                                                                                                                                                                 |
 | `name`            | string        | No       | New name                                                                                                                                                                                                                                        |
-| `categories`      | string[]      | No       | New options for an `autocomplete` or `multiselect` field                                                                                                                                                                                        |
+| `categories`      | string[]      | No       | New options for an `autocomplete` or `multiselect` field; ignored for every other type                                                                                                                                                          |
 
 ---
 
@@ -1070,23 +1077,23 @@ Batch-update custom field values on contacts and, in a Dex for Teams workspace, 
 
 Each update object:
 
-| Field                | Type                | Description                                                                                                                                                  |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `contact_id`         | string (UUID)       | Contact ID (send exactly one of `contact_id` / `company_id`)                                                                                                 |
-| `company_id`         | string (UUID)       | Company ID, for company fields (workspace only)                                                                                                              |
-| `custom_field_id`    | string (UUID)       | Custom field ID                                                                                                                                              |
-| `text_value`         | string              | Value for text/autocomplete fields                                                                                                                           |
-| `date_value`         | string (YYYY-MM-DD) | Value for date fields                                                                                                                                        |
-| `array_value`        | string[]            | Value for multi-select fields                                                                                                                                |
-| `member_user_id`     | string or null      | Teammate fields (workspace only): the member user id from `dex_list_workspace_members`, or `null` to clear                                                   |
-| `number_value`       | number or null      | Number fields (workspace only), or `null` to clear                                                                                                           |
-| `boolean_value`      | boolean or null     | Yes/No fields (workspace only), or `null` to clear                                                                                                           |
-| `linked_contact_ids` | string[] (UUIDs)    | Contact fields (workspace only): the workspace contacts to link, replacing the current set (at most 50, never the contact itself); `[]` clears. Replace only |
-| `linked_company_ids` | string[] (UUIDs)    | Company fields (workspace only): the workspace companies to link, replacing the current set (a company never links to itself); `[]` clears. Replace only     |
-| `mode`               | enum                | `replace` (default) overwrites the stored value; `prepend` / `append` keep it and add the new text in front of / after it                                    |
-| `separator`          | string              | Joiner for `prepend` / `append` (defaults to a newline)                                                                                                      |
+| Field                | Type                        | Description                                                                                                                                                  |
+| -------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contact_id`         | string (UUID)               | Contact ID (send exactly one of `contact_id` / `company_id`)                                                                                                 |
+| `company_id`         | string (UUID)               | Company ID, for company fields (workspace only)                                                                                                              |
+| `custom_field_id`    | string (UUID)               | Custom field ID                                                                                                                                              |
+| `text_value`         | string                      | Value for text/autocomplete fields                                                                                                                           |
+| `date_value`         | string (YYYY-MM-DD) or null | Value for date fields, or `null` to clear the date. A `text_value` without a `date_value` on a date field is refused                                         |
+| `array_value`        | string[]                    | Value for multi-select fields                                                                                                                                |
+| `member_user_id`     | string or null              | Teammate fields (workspace only): the member user id from `dex_list_workspace_members`, or `null` to clear                                                   |
+| `number_value`       | number or null              | Number fields (workspace only), or `null` to clear                                                                                                           |
+| `boolean_value`      | boolean or null             | Yes/No fields (workspace only), or `null` to clear                                                                                                           |
+| `linked_contact_ids` | string[] (UUIDs)            | Contact fields (workspace only): the workspace contacts to link, replacing the current set (at most 50, never the contact itself); `[]` clears. Replace only |
+| `linked_company_ids` | string[] (UUIDs)            | Company fields (workspace only): the workspace companies to link, replacing the current set (a company never links to itself); `[]` clears. Replace only     |
+| `mode`               | enum                        | `replace` (default) overwrites the stored value; `prepend` / `append` keep it and add the new text in front of / after it                                    |
+| `separator`          | string                      | Joiner for `prepend` / `append` (defaults to a newline)                                                                                                      |
 
-**`prepend` / `append` are atomic — do NOT read the current value first.** The server preserves the existing text and adds yours, so a read-modify-write is both unnecessary and racy. Array values prepend/append as a de-duplicated list; date fields support `replace` only.
+**`prepend` / `append` are atomic — do NOT read the current value first.** The server preserves the existing text and adds yours, so a read-modify-write is both unnecessary and racy. Array values prepend/append as a de-duplicated list; date fields support `replace` only. To clear a value: `text_value: ""` for text fields, `date_value: null` for dates, `array_value: []` for multi-select, and `null` for the workspace-only number, yes/no and teammate fields.
 
 Note this is why `dex_set_custom_field_values` is **not** idempotent: repeating an `append` call adds the text again.
 
@@ -1153,13 +1160,15 @@ Get one live provider event, including attendees, conferencing links, and recurr
 | `account_email`    | string | No       | Connected account email; use the event's returned `email` when known |
 | `account_provider` | enum   | No       | `GOOGLE` or `OFFICE365` to select the event's provider               |
 
-This tool writes nothing: it opts out of the note-metadata refresh the API performs for other clients. When the same address is connected under both providers, pass `account_provider` from the event returned by `dex_list_calendar_events`.
+This tool writes nothing: it opts out of the note-metadata refresh the API performs for other clients. A deleted event answers `record_not_found`. When the same address is connected under both providers, pass `account_provider` from the event returned by `dex_list_calendar_events`.
 
 ---
 
 ### dex_create_calendar_event
 
 Create a timed or all-day event on a connected calendar. Confirm before the call when attendees may receive invitations. Personal Dex connection only (refused on a Dex for Teams workspace connection).
+
+Without `idempotency_key`, an identical call within 24 hours replays the first result instead of creating a second event — even if that event was deleted since. To create the same event again, pass a fresh `idempotency_key`.
 
 | Parameter          | Type         | Required    | Description                                                                                                                           |
 | ------------------ | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1228,6 +1237,8 @@ Delete a provider event. This is irreversible and can cancel the meeting for all
 
 Always confirm the event identity, account, and attendee impact.
 
+An `event_id` the provider doesn't know — mistyped, on another account, or a Microsoft event already deleted — answers `record_not_found`. A repeat of the same delete within 24 hours replays the first result.
+
 ---
 
 ## Email
@@ -1264,11 +1275,11 @@ Without date bounds, results cover roughly the last six months. Provider operato
 
 ## Attention Items
 
-Attention items are email threads Dex flagged as waiting on the user — a reply someone expects, or an action such as signing or renewing — generated hourly from recent mail and shown on the Dex home page. All five tools are Personal Dex only; a workspace connection refuses them. The usual flow: list the items, read the thread, draft a reply, show it to the user, and send only what they approve.
+Attention items are conversations Dex flagged as waiting on the user — a reply someone expects, or an action such as signing or renewing — generated hourly and shown on the Dex home page. Each has a `source`: `email`, `whatsapp` or `linkedin`. Thread, draft and send work on email items only; a WhatsApp or LinkedIn item is answered in that app through its `link`, and any item can be resolved. All five tools are Personal Dex only; a workspace connection refuses them. The usual flow: list the items, read the thread, draft a reply, show it to the user, and send only what they approve.
 
 ### dex_list_attention_items
 
-List the user's open attention items, newest first.
+List the user's open attention items, newest first, from every source.
 
 | Parameter          | Type    | Required | Description                                  |
 | ------------------ | ------- | -------- | -------------------------------------------- |
@@ -1276,13 +1287,13 @@ List the user's open attention items, newest first.
 | `limit`            | integer | No       | Maximum items per page (default 25, max 100) |
 | `cursor`           | UUID    | No       | `next_cursor` from the previous page         |
 
-**Returns:** `items`: array of `id`, `title` (e.g. "Reply to Matt about the intro"), `body`, `sender_name`, `sender_email`, `contact` (`{ id, full_name }` when the sender is a Dex contact), `link` (opens the thread in the mail client), `created_at` and, for a done item, `resolved_at`; plus `has_more` and `next_cursor`.
+**Returns:** `items`: array of `id`, `source` (`email`, `whatsapp` or `linkedin`), `title` (e.g. "Reply to Matt about the intro"), `body`, `sender_name`, `sender_email`, `contact` (`{ id, full_name }` when the sender is a Dex contact), `link` (opens the thread in the mail client, or the chat in WhatsApp or LinkedIn), `created_at` and, for a done item, `resolved_at`; plus `has_more` and `next_cursor`.
 
 ---
 
 ### dex_get_attention_item_thread
 
-Read the email thread behind an item live from the user's mailbox, oldest message first. Nothing is stored.
+Read the email thread behind an email item, oldest message first. Items Dex made recently return only the message the item is about, saved when the item was made; older ones are read live from the user's mailbox. Nothing is stored or changed. A WhatsApp or LinkedIn item answers `unsupported_item_source`, with the item's link to reply in that app.
 
 | Parameter           | Type | Required | Description                                     |
 | ------------------- | ---- | -------- | ----------------------------------------------- |
@@ -1294,7 +1305,7 @@ Read the email thread behind an item live from the user's mailbox, oldest messag
 
 ### dex_draft_attention_item_reply
 
-Draft the user's reply in their saved drafting style. Nothing is sent or saved.
+Draft the user's reply to an email item in their saved drafting style. The draft is never sent or saved. A WhatsApp or LinkedIn item answers `unsupported_item_source`.
 
 | Parameter           | Type   | Required | Description                                                          |
 | ------------------- | ------ | -------- | -------------------------------------------------------------------- |
@@ -1317,13 +1328,13 @@ Send the reply into the thread from the mailbox that holds it, to the message be
 | `body`              | string   | Yes      | The plain-text reply, exactly as approved                                                                     |
 | `cc`                | string[] | No       | Optional cc recipients (max 10), each a valid email address; duplicates and the primary recipient are dropped |
 
-**Returns:** `sent: true` and the `item`, now done. Repeating the same call does not send twice. An item already done, or one whose thread can no longer be read, is refused and nothing is sent.
+**Returns:** `sent: true` and the `item`, now done. Repeating the same call does not send twice. An item already done, or one whose thread can no longer be read, is refused and nothing is sent. A WhatsApp or LinkedIn item answers `unsupported_item_source` and nothing is sent.
 
 ---
 
 ### dex_resolve_attention_item
 
-Mark an item done when the user handled it some other way, or reopen it.
+Mark an item of any source done when the user handled it some other way, or reopen it.
 
 | Parameter           | Type    | Required | Description                                        |
 | ------------------- | ------- | -------- | -------------------------------------------------- |
@@ -1505,7 +1516,7 @@ Set or clear the owner of 1-100 companies, one update per company in order. Work
 | `company_ids`     | string[] (UUID) | Yes      | Company IDs (`dex_list_companies`)                                                                                                                 |
 | `owner_member_id` | string          | null     | Yes                                                                                                                                                | A `member_id` from `dex_list_workspace_members`, or `me`; `null` clears the owner |
 
-**Returns:** `updated` and `company_ids`. If one fails part-way, the result also has `not_updated_ids` and `error`; retry those.
+**Returns:** `updated` (every company written, including ones the member already owned) and `company_ids`. If one fails part-way, the result also has `not_updated_ids` and `error`; retry those.
 
 ---
 
@@ -1628,6 +1639,8 @@ Record where a workspace contact works, by `company_id` or by the exact name of 
 
 **Returns:** `roles`, `contact` (with its derived `company` text) and the `company_id` used.
 
+Retry with the same `idempotency_key`: without one, repeating a `change_employer` call ends the role it just created and records the job change again; `correct` only rewrites the same role.
+
 ---
 
 ## Account
@@ -1643,7 +1656,7 @@ Read-only snapshot of the authenticated user's own Dex account: their profile, c
 **Returns:** `{ profile?, integrations?, onboarding? }`.
 
 - `profile`: `name`, `email`, `timezone`, `default_email_client` (e.g. `gmail`, `outlook`, `superhuman`), `messaging_mode` (`sms` or `whatsapp`).
-- `integrations`: one entry per connected Google/Outlook mailbox (with a `permissions` object — `read_email`, `send_email`, `create_draft`, `read_calendar`, `write_calendar` — plus per-account email/calendar sync state) and one per LinkedIn, WhatsApp, iMessage, Instagram, Facebook, Granola and address-book sync. Each carries `provider`, `connected`, `enabled`, a sanitized `status`, `needs_reauth`, and a sanitized `error_code`. Fields whose value is null are omitted.
+- `integrations`: one entry per connected Google/Outlook mailbox (with a `permissions` object — `read_email`, `send_email`, `create_draft`, `read_calendar`, `write_calendar` — plus per-account email/calendar sync state) and one per LinkedIn, WhatsApp, iMessage, Instagram, Facebook, Granola and address-book sync. Each carries `provider`, `connected` and a sanitized `status`, plus `enabled`, `needs_reauth` and a sanitized `error_code` where they apply. Fields whose value is null are omitted.
 - `onboarding`: `onboarded_web`, `onboarded_mobile`, the raw `status`, the getting-started `checklist` (`key`, `complete`, `auto_completed`), and `checklist_dismissed`.
 
 Tokens, cookies, scopes and raw error text are never returned.
