@@ -15,7 +15,7 @@ description: >
   (15) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.6.0'
+  version: '2.7.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -310,13 +310,14 @@ When a user says "I have a meeting with X":
 2. Get full details with `include_notes: true`
 3. Check recent reminders for pending items
 4. Optionally search relevant email correspondence and fetch the calendar event when the user asks for live context
-5. Check `dex_get_contact_research` for a stored web research note; offer `dex_research_contacts` (paid, slow) when there is none and the user wants public background
+5. Check `dex_get_contact_research` for a stored web research note; offer `dex_research_contacts` (slow, and it counts toward the account's research limits) when there is none and the user wants public background
 6. Summarize: last interaction, key notes, pending follow-ups, shared context, attendees, recent correspondence, and cited web findings
 7. See [CRM Workflows](references/crm-workflows.md) for detailed meeting prep guidance
 
 ### 8. Manage Calendar Events
 
 - Use `dex_list_calendar_events` for a time window or plain-text event search across all connected Google/Microsoft accounts
+- On a Dex for Teams workspace connection it reads only what members share with the workspace: a range of at most 7 days (one day by default, no `query`), or `contact_id` for one contact's meetings, newest first. Get, create, update and delete stay Personal only
 - Reuse an event's returned `email` as `account_email` for get/update/delete
 - For get/create/update/delete, also pass `account_provider` when the same address is connected to both providers
 - For timed events, provide both `start_datetime` and `end_datetime` with explicit offsets; include an IANA `timezone`
@@ -335,6 +336,7 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 ### 9. Search Correspondence
 
 - Use `dex_search_emails` for live, read-only search across all connected Google/Microsoft mailboxes
+- On a Dex for Teams workspace connection it reads one workspace contact's emails at a time: pass `contact_id` (from `dex_search_contacts`); `query`, `folder`, `cursor`, `after` and `before` are refused there
 - To list recent mail, omit `query`; use `folder: 'inbox'` for received mail. Follow `next_cursor` while keeping the same folder and date bounds
 - Use plain keywords such as a name, company, domain, or topic; provider operators such as `from:` and `to:` are neutralized
 - Set `after` and `before` for precise date ranges; otherwise the search covers roughly the last six months
@@ -344,7 +346,7 @@ If a calendar write fails for missing provider scope, direct the user to **Setti
 ### 10. Research a Contact on the Web
 
 - `dex_get_contact_research` reads the stored note for up to 10 contacts at no cost — check it first
-- `dex_research_contacts` runs Dex Research for up to 5 contacts per call: a paid web search + page extraction + LLM summary that takes a minute or more per contact. Confirm with the user before running it on more than a couple of contacts
+- `dex_research_contacts` runs Dex Research for up to 5 contacts per call: a web search + page extraction + LLM summary that takes a minute or more per contact and counts toward the account's research limits. Confirm with the user before running it on more than a couple of contacts
 - Notes under 30 days old are served from cache; pass `force: true` only when the user explicitly wants a fresh run
 - A fresh run replaces the stored research note and its finding statuses. Preserving existing contact fields does not preserve the previous research note; explain that replacement before forcing a rerun
 - Quote findings with their citations (`[[n]]` markers resolve into `sources`) and mention `identity_confidence` when it is not `high`
@@ -449,7 +451,7 @@ High-risk examples:
 - Deleting groups, tags, notes, reminders, or custom fields
 - Setting custom field values in bulk
 - Creating, updating, or deleting calendar events
-- Running paid web research (`dex_research_contacts`) on more than a couple of contacts, or with `force: true`
+- Running web research (`dex_research_contacts`) on more than a couple of contacts, or with `force: true`
 
 Before a destructive call, resolve names to current IDs, read the current record when overwriting a collection, show the intended delta, and never guess ambiguous targets.
 
