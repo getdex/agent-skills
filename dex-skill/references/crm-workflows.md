@@ -214,7 +214,7 @@ When a user says "I have a meeting with X" or "Prep me for a call with X":
 3. **Check reminders** to find any pending follow-ups related to this contact
 4. **Fetch the calendar event** when the user wants live attendee, conferencing, or recurrence details
 5. **Search recent correspondence** when email context would improve the brief
-6. **Check web research** with `dex_get_contact_research`; if nothing is stored and the user wants public background, offer `dex_research_contacts` (paid, takes a minute or more)
+6. **Check web research** with `dex_get_contact_research`; if nothing is stored and the user wants public background, offer `dex_research_contacts` (takes a minute or more per contact)
 7. **Synthesize a brief** covering:
    - Who they are (role, company, relationship context)
    - Last interaction (when, what was discussed)
@@ -294,7 +294,7 @@ Use `dex_search_emails` to find live message metadata across connected Google an
 Dex Research produces a cited note about a contact from the public web — who they are, current focus, background, interests — plus structured findings (LinkedIn, website, email, phone):
 
 - Read first: `dex_get_contact_research` returns stored notes for up to 10 contacts at no cost
-- Run second: `dex_research_contacts` researches up to 5 contacts per call. It is paid and slow (a minute or more per contact, run in parallel), so confirm before researching more than a couple of contacts and chunk larger sets
+- Run second: `dex_research_contacts` researches up to 5 contacts per call. It is slow (a minute or more per contact, run in parallel) and counts toward the account's research limits, so confirm before researching more than a couple of contacts and chunk larger sets
 - Notes under 30 days old come from cache; use `force: true` only on an explicit request for a fresh run
 - Quote bullets with their `[[n]]` citations resolved into `sources`, and flag `identity_confidence` below `high`
 - Empty `linkedin` / `website` fields are filled by the run itself (`applied`); `pending` email and phone findings need the user's confirmation before `dex_update_contact`
