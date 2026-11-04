@@ -15,7 +15,7 @@ description: >
   (15) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.7.0'
+  version: '2.8.1'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
