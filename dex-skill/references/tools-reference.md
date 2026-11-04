@@ -755,7 +755,7 @@ List contacts in a group with pagination.
 
 ## Notes
 
-**Note rows.** Every note tool (and `dex_get_contact`'s `recent_notes`) returns `meeting_type` as the note type's name — the same as `meeting_types.name` when the note has a type, otherwise the legacy type label. It is kept for compatibility; prefer `meeting_type_id` / `meeting_types`. With `include_contacts: true`, `timeline_items_contacts` lists the linked contacts with their names, on reads and on `dex_create_note` / `dex_update_note` alike, except `dex_list_notes` on a Dex for Teams workspace connection, which gives their ids only (read names with `dex_get_note` or `dex_get_contact`). Its `is_origin` marks the contact whose page the note was written on in the Dex app; notes created through these tools never set it, so it is `false` on all of their links.
+**Note rows.** Every note tool (and `dex_get_contact`'s `recent_notes`) returns `meeting_type` as the note type's name — the same as `meeting_types.name` when the note has a type, otherwise the legacy type label. It is kept for compatibility; prefer `meeting_type_id` / `meeting_types`. With `include_contacts: true`, `timeline_items_contacts` lists the linked contacts with their names, on reads and on `dex_create_note` / `dex_update_note` alike. Its `is_origin` marks the contact whose page the note was written on in the Dex app; notes created through these tools never set it, so it is `false` on all of their links.
 
 ### dex_list_notes
 
@@ -768,7 +768,7 @@ List notes on contact timelines with optional filtering by contact.
 | `end_date`         | date or ISO datetime | No       | Only notes on or before this bound, inclusive                                                                                                        |
 | `cursor`           | string               | No       | Pagination cursor                                                                                                                                    |
 | `limit`            | integer              | No       | Results per page (default 10); 0 is treated as omitted and returns the default page. A workspace page returns at most 100; larger values are clamped |
-| `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default. In a workspace, ids only (names via `dex_get_note`)                                            |
+| `include_contacts` | boolean              | No       | Include contacts linked to each note; off by default                                                                                                 |
 
 **Returns:** `{ items: Note[], has_more: boolean, next_cursor?: string }`
 
@@ -1647,17 +1647,20 @@ Retry with the same `idempotency_key`: without one, repeating a `change_employer
 
 ### dex_get_account_overview
 
-Read-only snapshot of the authenticated user's own Dex account: their profile, connected integrations, and onboarding state. Always the current user — it takes no user id. Use it for "what accounts/integrations do I have connected?", "can Dex send email or write to my calendar?", "why isn't my LinkedIn/WhatsApp syncing?", or "have I finished onboarding?". Never infer connection state from an email search or from onboarding-checklist completion — read it here. Personal Dex connection only: on a Dex for Teams workspace connection it answers `workspace_context_unsupported`.
+Read-only snapshot of the authenticated user's own Dex account: their profile, connected integrations, and onboarding state. Always the current user — it takes no user id. Use it for "what accounts/integrations do I have connected?", "can Dex send email or write to my calendar?", "why isn't my LinkedIn/WhatsApp syncing?", or "have I finished onboarding?". Never infer connection state from an email search or from onboarding-checklist completion — read it here.
 
-| Parameter  | Type     | Required | Description                                                                                   |
-| ---------- | -------- | -------- | --------------------------------------------------------------------------------------------- |
-| `sections` | string[] | No       | Which sections to return: any of `profile`, `integrations`, `onboarding`. Omit for all three. |
+| Parameter  | Type     | Required | Description                                                                                                                             |
+| ---------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `sections` | string[] | No       | Which sections to return: any of `profile`, `integrations`, `onboarding` and, on a workspace connection only, `workspace`. Omit for all |
 
-**Returns:** `{ profile?, integrations?, onboarding? }`.
+**Returns:** `{ profile?, integrations?, onboarding?, workspace? }`.
 
 - `profile`: `name`, `email`, `timezone`, `default_email_client` (e.g. `gmail`, `outlook`, `superhuman`), `messaging_mode` (`sms` or `whatsapp`).
 - `integrations`: one entry per connected Google/Outlook mailbox (with a `permissions` object — `read_email`, `send_email`, `create_draft`, `read_calendar`, `write_calendar` — plus per-account email/calendar sync state) and one per LinkedIn, WhatsApp, iMessage, Instagram, Facebook, Granola and address-book sync. Each carries `provider`, `connected` and a sanitized `status`, plus `enabled`, `needs_reauth` and a sanitized `error_code` where they apply. Fields whose value is null are omitted.
 - `onboarding`: `onboarded_web`, `onboarded_mobile`, the raw `status`, the getting-started `checklist` (`key`, `complete`, `auto_completed`), and `checklist_dismissed`.
+- `workspace` (Dex for Teams workspace connection only): `workspace_id` and `accounts`, the user's own Google/Outlook accounts and what each shares with this workspace. Each has `provider`, `account_email`, `email_shareable` and `calendar_shareable` (with `email_unshareable_reason` / `calendar_unshareable_reason` when not shareable), and `sharing`: `state` (`never_shared`, `enabled`, `disabled` or `frozen`), and when it was ever shared, the channels (`email`, `calendar`), the `level` teammates see (`dates`: dates only; `metadata`: also participants and subjects or titles; `full`: also snippets and descriptions) and a `disabled_reason` once stopped. Use it for "why can't my team see my emails with Acme?". It never lists another member's accounts. Asking for `workspace` on a Personal connection answers `workspace_context_required`.
+
+On a workspace connection the other sections are still the user's own account, and `workspace` is included by default.
 
 Tokens, cookies, scopes and raw error text are never returned.
 
@@ -1678,5 +1681,5 @@ Common error patterns:
 - **Calendar write scope missing**: Ask the user to grant calendar access for that account in Settings → Sync & Integrations.
 - **Ambiguous calendar account**: Reuse the event's `email` and `provider` for get/update/delete; do not guess when one email exists under both providers.
 - **Truncated response**: Response exceeded 25,000 chars. For a READ tool, use a smaller page for cursor tools or narrow the query/date range for single-batch tools. For a WRITE tool the write already completed and only the response was cut: never repeat the call (it would run the write again); read the omitted rows or fields back as `_truncated.message` says.
-- **Refused on a Dex for Teams workspace connection**: Some tools and options are Personal Dex only: the five attention-item tools, calendar get, create, update and delete, `dex_get_priority_tiers` and `dex_set_contact_priority`, `dex_get_account_overview`, and the options marked "Personal Dex only" above (`dex_list_calendar_events` and `dex_search_emails` instead read what members share with the workspace). Writes follow the member's role: viewers can only read; standard members can write, including archiving and restoring contacts and companies and deleting tags and groups; owners and admins can also delete and merge contacts, delete and merge companies, and create, edit and delete custom-field definitions. The error says so, leading with its code (`workspace_context_unsupported` for a Personal-only tool or option), and for a refused tool or option names the alternative; nothing was read or changed, and nothing falls back to Personal data. Tell the user and use the alternative, or the Dex app.
+- **Refused on a Dex for Teams workspace connection**: Some tools and options are Personal Dex only: the five attention-item tools, calendar get, create, update and delete, `dex_get_priority_tiers` and `dex_set_contact_priority`, and the options marked "Personal Dex only" above (`dex_list_calendar_events` and `dex_search_emails` instead read what members share with the workspace). Writes follow the member's role: viewers can only read; standard members can write, including archiving and restoring contacts and companies and deleting tags and groups; owners and admins can also delete and merge contacts, delete and merge companies, and create, edit and delete custom-field definitions. The error says so, leading with its code (`workspace_context_unsupported` for a Personal-only tool or option), and for a refused tool or option names the alternative; nothing was read or changed, and nothing falls back to Personal data. Tell the user and use the alternative, or the Dex app.
 - **Refused on a Personal connection**: The company tools, `dex_list_workspace_members` and the options marked for workspace connections only answer `workspace_context_required`. Nothing was read or changed. Leave the option out, or tell the user the tool needs a connection to a Dex for Teams workspace.
