@@ -1293,7 +1293,7 @@ List the user's open attention items, newest first, from every source.
 
 ### dex_get_attention_item_thread
 
-Read the email thread behind an email item, oldest message first. Items Dex made recently return only the message the item is about, saved when the item was made; older ones are read live from the user's mailbox. Nothing is stored or changed. A WhatsApp or LinkedIn item answers `unsupported_item_source`, with the item's link to reply in that app.
+Read-only: show the email thread behind an email item, oldest message first. It does not save the thread or change the item, and changes nothing in the mailbox (no message is marked read, moved or labeled). When Dex already stored a copy with the item, that copy is returned; otherwise the thread is read live from the user's mailbox, without saving the result. A WhatsApp or LinkedIn item answers `unsupported_item_source`, with the item's link to reply in that app.
 
 | Parameter           | Type | Required | Description                                     |
 | ------------------- | ---- | -------- | ----------------------------------------------- |
@@ -1305,7 +1305,7 @@ Read the email thread behind an email item, oldest message first. Items Dex made
 
 ### dex_draft_attention_item_reply
 
-Draft the user's reply to an email item in their saved drafting style. The draft is never sent or saved. A WhatsApp or LinkedIn item answers `unsupported_item_source`.
+Read-only: write a suggested reply to an email item in the user's saved drafting style and return it as text for the user to review. It creates no draft in Gmail or Outlook, sends nothing, and does not save the reply or change the item; only `dex_send_attention_item_reply` sends, once the user approves. A WhatsApp or LinkedIn item answers `unsupported_item_source`.
 
 | Parameter           | Type   | Required | Description                                                          |
 | ------------------- | ------ | -------- | -------------------------------------------------------------------- |
