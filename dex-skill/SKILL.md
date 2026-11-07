@@ -15,7 +15,7 @@ description: >
   (15) Authenticate via /dex-login,
   or handle another personal CRM task involving the user's professional network.
 metadata:
-  version: '2.8.4'
+  version: '2.9.0'
   openclaw:
     emoji: "\U0001F91D"
     homepage: https://getdex.com
@@ -42,7 +42,9 @@ Check which access method is available, in this order:
 2. **CLI installed?** Check if `dex` command exists (run `which dex` or `dex auth status`). If authenticated, use CLI commands.
 3. **Neither?** Guide the user through setup.
 
-**If you can run shell commands but cannot open a browser** — you are a sandboxed-compute agent (Grok Bot, OpenClaw, and similar hosted agents that execute on their own machine rather than the user's). Don't expect the host's own MCP connector sign-in to work: its form takes only a URL and static headers, so it never starts an OAuth flow and reports `authentication_required` with no link to hand the user. Start with **Path B** (install the CLI) followed by the **device code flow** below — that terminates in the user signing in on their own device.
+**On Grok Bot**, add the Dex MCP server at `https://mcp.getdex.com/mcp` with Grok's own connector. Grok Bot sets up the connection and walks the user through signing in to Dex, so you need neither the CLI nor a device code there.
+
+**If you can run shell commands but cannot open a browser** — you are a sandboxed-compute agent (OpenClaw and similar hosted agents that execute on their own machine rather than the user's). Don't expect the host's own MCP connector sign-in to work: its form takes only a URL and static headers, so it never starts an OAuth flow and reports `authentication_required` with no link to hand the user. Start with **Path B** (install the CLI) followed by the **device code flow** below — that terminates in the user signing in on their own device.
 
 Once the device flow has issued a `dex_` key, you have both options. Keep using the CLI, or — if the user prefers MCP tools over CLI commands — add `https://mcp.getdex.com/mcp` as a connector with that key as an `Authorization: Bearer dex_…` header. Tool calls work either way.
 
@@ -54,7 +56,7 @@ The host may still label the connector "unauthenticated" because it tracks OAuth
 
 **Path A — Platform supports MCP _with OAuth_ (Claude Desktop, Cursor, VS Code, Gemini CLI, etc.):**
 
-This path requires a client that implements the MCP OAuth spec — it must be able to follow a `WWW-Authenticate` challenge and open a browser or hand the user an authorize URL. A host that only accepts a server URL plus a static `Authorization` header (Grok Bot, the xAI API remote-MCP tool) cannot complete it; use Path B instead.
+This path requires a client that implements the MCP OAuth spec — it must be able to follow a `WWW-Authenticate` challenge and open a browser or hand the user an authorize URL. A host that only accepts a server URL plus a static `Authorization` header (such as the xAI API remote-MCP tool) cannot complete it; use Path B instead.
 
 If the user already has the Dex MCP server configured, or their platform can add MCP servers:
 
@@ -88,7 +90,7 @@ Direct the user to follow the setup guide at **https://getdex.com/docs/ai/mcp-se
 
 Triggered by `/dex-login` or on first use when not authenticated. Prefer MCP browser OAuth when your host supports it, then device code for an interactive CLI session or any sandboxed-compute agent, and API keys for CI or when the user explicitly chooses one.
 
-On Grok Bot, OpenClaw, and similar hosted agents, **device code is the first choice, not the fallback** — there is no browser on your machine to open, but the user has one on theirs.
+On OpenClaw and similar hosted agents, **device code is the first choice, not the fallback** — there is no browser on your machine to open, but the user has one on theirs. (Grok Bot is different: it adds the MCP server and handles the sign-in itself; see [Setup](#setup--detect-access-method).)
 
 **Do not trust `dex auth status` alone.** Status is green if any credential file exists. Verify with a real command such as `dex dex-list-tags`. A `401 unauthorized` after a "successful" login almost always means the CLI is still reading a stale token.
 
