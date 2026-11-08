@@ -50,7 +50,7 @@ Once the device flow has issued a `dex_` key, you have both options. Keep using 
 
 > **Before you take the connector path, read this — the rule is here, not only in [Authentication](#authentication).** A `dex_` key carries **no OAuth scopes** and does not expire, unlike the scoped one-hour OAuth token. It acts in one place: Personal Dex or the one workspace it was created for, with its configured Read-only or Read & write access and the member's workspace role. Never print it, echo it into chat, or place it in a tool argument the user can see. Nothing in this paragraph relaxes that. If wiring the connector would require you to surface the key anywhere at all, **stop** and ask the user to mint their own key at Settings → Integrations and paste it into the host's connector field themselves.
 
-The host may still label the connector "unauthenticated" because it tracks OAuth state it never established. That badge on its own is cosmetic — but a `401` or `403` on a tool call is a real failure (for example, a revoked key or a Personal key whose owner lacks Professional), not a display quirk. A key bound to a workspace does not require the owner's Professional plan. Judge by whether tool calls actually succeed, and surface a rejection instead of retrying it.
+The host may still label the connector "unauthenticated" because it tracks OAuth state it never established. That badge on its own is cosmetic — but a `401` or `403` on a tool call is a real failure (for example, a revoked key or a Personal key whose owner lacks Professional), not a display quirk. Keys require Dex Professional for Personal Dex, or membership in the Dex for Teams workspace they connect to. Judge by whether tool calls actually succeed, and surface a rejection instead of retrying it.
 
 ### First-Time Setup
 
@@ -106,7 +106,7 @@ Never ask the user to paste an API key into chat. Do not print, log, commit, or 
 
 **Option 1 — API Key:**
 
-1. User generates a key at [Dex Settings > Integrations](https://getdex.com/appv3/settings/api). Personal keys require Professional; a key bound to a workspace does not require the owner's Professional plan.
+1. User generates a key at [Dex Settings > Integrations](https://getdex.com/appv3/settings/api). Requires Dex Professional (Personal) or membership in the Dex for Teams workspace the key connects to.
 2. Ask the user to save it in their own terminal, or write both files below from a local script that never prints the value
 3. Destinations: `~/.dex/api-key` (chmod 600) **and** `~/.clihub/credentials.json` (chmod 600)
 
