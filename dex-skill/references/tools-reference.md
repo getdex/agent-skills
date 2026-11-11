@@ -1675,7 +1675,7 @@ Tokens, cookies, scopes and raw error text are never returned.
 
 Common error patterns:
 
-- **Professional subscription required**: 403 response. Inform user they need a Dex Professional plan and provide upgrade URL.
+- **Access requirements**: An API key or MCP connection requires Dex Professional for Personal Dex, or membership in the Dex for Teams workspace it connects to. Personal approval returns `upgrade_required`; raw `dex_` bearer authentication on MCP returns HTTP 403 `insufficient_scope` with "API key requires a Professional subscription"; REST calls return HTTP 403 `forbidden` with "Public API access requires a Professional subscription". If an existing Personal OAuth connection's owner loses Professional, tool calls return "Your Dex account needs the Professional plan to use these tools. Plan details: https://getdex.com/pricing/". Upgrade to Professional, or create a key (or connect) for a workspace you belong to. See [auth.md](https://getdex.com/auth.md) for the full error and recovery table.
 - **Not found**: Contact/tag/group/note/reminder ID doesn't exist. Ask user to search again.
 - **Invalid date**: Date string couldn't be parsed. Ensure ISO 8601 format.
 - **Calendar write scope missing**: Ask the user to grant calendar access for that account in Settings → Sync & Integrations.
